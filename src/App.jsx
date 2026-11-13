@@ -8,12 +8,13 @@ import { VehicleFormModal } from './components/VehicleFormModal'
 import { SupabaseSettingsModal } from './components/SupabaseSettingsModal'
 import { api } from './services/api'
 import { getSupabaseConfig } from './lib/supabase'
-import { Car, Clock, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Car, Clock, CheckCircle2, AlertCircle, AlertTriangle, ExternalLink } from 'lucide-react'
 
 export default function App() {
   const [vehicles, setVehicles] = useState([])
   const [loans, setLoans] = useState([])
   const [dataSource, setDataSource] = useState('local')
+  const [isTableMissing, setIsTableMissing] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   
   // Navigation Tabs
@@ -46,6 +47,7 @@ export default function App() {
       setVehicles(vRes.data || [])
       setLoans(lRes.data || [])
       setDataSource(vRes.source || 'local')
+      setIsTableMissing(Boolean(vRes.isTableMissing))
     } catch (err) {
       console.error('Error loadData:', err)
       showToast('Gagal memuat data terbaru.', 'error')
@@ -162,6 +164,7 @@ export default function App() {
       {/* Header / Navbar */}
       <Navbar
         supabaseStatus={isConfigured && dataSource === 'supabase'}
+        isTableMissing={isTableMissing}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenLoanModal={() => handleOpenBorrowModal(null)}
         onRefresh={loadData}
@@ -171,21 +174,27 @@ export default function App() {
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
         
-        {/* Banner Informational Demo Mode */}
-        {!isConfigured && (
-          <div className="p-3.5 sm:p-4 rounded-xl bg-amber-50/80 border border-amber-200/80 text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-amber-500 shrink-0" />
-              <span>
-                <strong>Mode Demo Lokal:</strong> Masukkan Supabase Anon Key Anda untuk menghubungkan REST API database cloud secara live.
-              </span>
+        {/* Banner Table Missing Notification */}
+        {isTableMissing && (
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-xs">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold">Kunci Supabase Valid, namun Tabel Database Belum Dibuat:</span>
+                <p className="text-amber-800 mt-0.5">
+                  Tabel <code>vehicles</code> belum ada di Supabase Anda. Salin file <code>supabase-schema.sql</code> dan klik <strong>Run</strong> di SQL Editor Supabase agar database langsung aktif secara live!
+                </p>
+              </div>
             </div>
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className="text-xs font-semibold text-amber-900 hover:text-black underline shrink-0 cursor-pointer"
+            <a
+              href="https://supabase.com/dashboard/project/dvezfsggwmxbdglfudep/sql/new"
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-1.5 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 transition-colors shrink-0 inline-flex items-center gap-1.5 shadow-xs"
             >
-              Masukkan Kunci Supabase →
-            </button>
+              <span>Buka SQL Editor Supabase</span>
+              <ExternalLink className="h-3 w-3" />
+            </a>
           </div>
         )}
 

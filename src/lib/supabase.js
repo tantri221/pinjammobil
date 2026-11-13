@@ -3,21 +3,27 @@ import { createClient } from '@supabase/supabase-js'
 const STORAGE_KEY_URL = 'pinjammobil_supabase_url'
 const STORAGE_KEY_ANON = 'pinjammobil_supabase_anon_key'
 
+// Default ke kredensial Supabase proyek Anda
+const DEFAULT_URL = 'https://dvezfsggwmxbdglfudep.supabase.co'
+const DEFAULT_KEY = 'sb_publishable_FZX3YTl-Af1qPCmb2iHdQw_i27EQaJs'
+
 export function getSupabaseConfig() {
   const envUrl = 
     import.meta.env.VITE_SUPABASE_URL || 
-    import.meta.env.NEXT_PUBLIC_SUPABASE_URL || ''
+    import.meta.env.NEXT_PUBLIC_SUPABASE_URL || 
+    DEFAULT_URL
 
   const envKey = 
     import.meta.env.VITE_SUPABASE_ANON_KEY || 
     import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 
-    import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+    import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+    DEFAULT_KEY
 
   const localUrl = localStorage.getItem(STORAGE_KEY_URL)
   const localKey = localStorage.getItem(STORAGE_KEY_ANON)
 
-  const url = localUrl || envUrl || ''
-  const anonKey = localKey || envKey || ''
+  const url = localUrl || envUrl || DEFAULT_URL
+  const anonKey = localKey || envKey || DEFAULT_KEY
 
   const isConfigured = Boolean(
     url &&

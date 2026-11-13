@@ -1,10 +1,11 @@
 import React from 'react'
-import { Car, Database, Plus, RefreshCw, Layers } from 'lucide-react'
+import { Car, Database, Plus, RefreshCw, AlertTriangle } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
 
 export function Navbar({ 
   supabaseStatus, 
+  isTableMissing,
   onOpenSettings, 
   onOpenLoanModal, 
   onRefresh, 
@@ -35,13 +36,29 @@ export function Navbar({
           {/* Supabase status badge */}
           <button
             onClick={onOpenSettings}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors bg-white hover:bg-zinc-50 border-zinc-200 cursor-pointer"
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+              supabaseStatus 
+                ? 'bg-emerald-50/80 border-emerald-200 text-emerald-800'
+                : isTableMissing
+                ? 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100'
+                : 'bg-white hover:bg-zinc-50 border-zinc-200 text-zinc-700'
+            }`}
             title="Klik untuk konfigurasi koneksi Supabase"
           >
-            <div className={`h-2 w-2 rounded-full ${supabaseStatus ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
-            <span className="text-zinc-600 hidden md:inline">Database:</span>
-            <span className={supabaseStatus ? 'font-semibold text-emerald-700' : 'font-medium text-amber-700'}>
-              {supabaseStatus ? 'Supabase Connected' : 'Local Storage Demo'}
+            <div className={`h-2 w-2 rounded-full ${
+              supabaseStatus 
+                ? 'bg-emerald-500 animate-pulse' 
+                : isTableMissing
+                ? 'bg-amber-500'
+                : 'bg-zinc-400'
+            }`} />
+            <span className="hidden md:inline">Database:</span>
+            <span className="font-semibold">
+              {supabaseStatus 
+                ? 'Supabase Connected' 
+                : isTableMissing 
+                ? 'Tabel Supabase Belum Dibuat' 
+                : 'Local Demo Mode'}
             </span>
           </button>
 

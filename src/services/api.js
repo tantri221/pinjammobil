@@ -37,15 +37,24 @@ export const api = {
           .order('id', { ascending: true })
 
         if (!error && data) {
-          return { data, source: 'supabase' }
+          return { data, source: 'supabase', error: null }
         }
-        if (error) console.error('Supabase getVehicles error:', error.message)
+        if (error) {
+          console.warn('Supabase getVehicles error:', error.message)
+          const isTableMissing = error.code === 'PGRST205' || error.message?.includes('schema cache')
+          return { 
+            data: getLocalData(LOCAL_VEHICLES_KEY, INITIAL_VEHICLES), 
+            source: 'local',
+            isTableMissing,
+            errorMessage: error.message
+          }
+        }
       } catch (err) {
         console.warn('Gagal memuat kendaraan dari Supabase, fallback ke lokal:', err)
       }
     }
 
-    return { data: getLocalData(LOCAL_VEHICLES_KEY, INITIAL_VEHICLES), source: 'local' }
+    return { data: getLocalData(LOCAL_VEHICLES_KEY, INITIAL_VEHICLES), source: 'local', error: null }
   },
 
   // CREATE
@@ -199,7 +208,6 @@ export const api = {
           .select()
 
         if (!error && data) {
-          // Update status kendaraan menjadi borrowed
           await supabase
             .from('vehicles')
             .update({ status: 'borrowed' })
