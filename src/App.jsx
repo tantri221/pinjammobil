@@ -6,9 +6,13 @@ import { LoanHistoryTable } from './components/LoanHistoryTable'
 import { LoanFormModal } from './components/LoanFormModal'
 import { VehicleFormModal } from './components/VehicleFormModal'
 import { SupabaseSettingsModal } from './components/SupabaseSettingsModal'
+import { AuthModal } from './components/AuthModal'
+import { UserManagementModal } from './components/UserManagementModal'
 import { api } from './services/api'
 import { getSupabaseConfig } from './lib/supabase'
-import { Car, Clock, CheckCircle2, AlertCircle, AlertTriangle, ExternalLink, RefreshCw } from 'lucide-react'
+import { Car, Clock, CheckCircle2, AlertCircle, AlertTriangle, ExternalLink, RefreshCw, Shield, Users } from 'lucide-react'
+
+const AUTH_USER_KEY = 'pinjammobil_auth_user'
 
 export default function App() {
   const [vehicles, setVehicles] = useState([])
@@ -16,6 +20,19 @@ export default function App() {
   const [supabaseError, setSupabaseError] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   
+  // Auth & Session
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem(AUTH_USER_KEY)
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  })
+  const [isRegistrationAllowed, setIsRegistrationAllowed] = useState(false)
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [isUserManagementOpen, setIsUserManagementOpen] = useState(false)
+
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState('vehicles') // 'vehicles' | 'loans'
 
@@ -36,14 +53,19 @@ export default function App() {
     setTimeout(() => setToast(null), 3500)
   }
 
+  const isAdmin = currentUser?.role === 'admin'
+
   const loadData = useCallback(async () => {
     setIsRefreshing(true)
     setSupabaseError(null)
     try {
-      const [vRes, lRes] = await Promise.all([
+      const [vRes, lRes, regStatus] = await Promise.all([
         api.getVehicles(),
-        api.getLoans()
+        api.getLoans(),
+        api.getRegistrationStatus()
       ])
+
+      setIsRegistrationAllowed(regStatus)
 
       if (vRes.error) {
         setSupabaseError(vRes.error)
@@ -68,13 +90,46 @@ export default function App() {
     loadData()
   }, [loadData])
 
+  // --- Auth Handlers ---
+  const handleLoginSuccess = (user) => {
+    setCurrentUser(user)
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user))
+    showToast(`Selamat datang kembali, ${user.name}! (${user.role === 'admin' ? 'Administrator' : 'Staff'})`)
+  }
+
+  const handleLogout = () => {
+    setCurrentUser(null)
+    localStorage.removeItem(AUTH_USER_KEY)
+    showToast('Anda telah keluar dari akun.')
+  }
+
+  const handleToggleRegistration = async (newStatus) => {
+    const res = await api.setRegistrationStatus(newStatus)
+    if (res.success) {
+      setIsRegistrationAllowed(newStatus)
+      showToast(newStatus ? 'Pendaftaran akun publik DIBUKA.' : 'Pendaftaran akun publik DITUTUP.')
+    } else {
+      showToast(res.error || 'Gagal mengubah pengaturan registrasi.', 'error')
+    }
+  }
+
   // --- Vehicle CRUD Handlers ---
   const handleOpenAddVehicle = () => {
+    if (!isAdmin) {
+      showToast('Hanya Administrator yang memiliki akses menambah armada.', 'error')
+      setIsAuthModalOpen(true)
+      return
+    }
     setEditingVehicle(null)
     setIsVehicleModalOpen(true)
   }
 
   const handleOpenEditVehicle = (vehicle) => {
+    if (!isAdmin) {
+      showToast('Hanya Administrator yang memiliki akses mengubah armada.', 'error')
+      setIsAuthModalOpen(true)
+      return
+    }
     setEditingVehicle(vehicle)
     setIsVehicleModalOpen(true)
   }
@@ -100,6 +155,10 @@ export default function App() {
   }
 
   const handleDeleteVehicle = async (vehicle) => {
+    if (!isAdmin) {
+      showToast('Hanya Administrator yang memiliki akses menghapus armada.', 'error')
+      return
+    }
     if (!window.confirm(`Yakin ingin menghapus unit "${vehicle.name} (${vehicle.license_plate})"?`)) return
     const res = await api.deleteVehicle(vehicle.id)
     if (res.success) {
@@ -112,6 +171,11 @@ export default function App() {
 
   // --- Loan CRUD Handlers ---
   const handleOpenBorrowModal = (vehicle = null) => {
+    if (!currentUser) {
+      showToast('Silakan masuk (login) terlebih dahulu untuk meminjam mobil.', 'error')
+      setIsAuthModalOpen(true)
+      return
+    }
     setSelectedVehicle(vehicle)
     setIsLoanModalOpen(true)
   }
@@ -137,6 +201,10 @@ export default function App() {
   }
 
   const handleDeleteLoan = async (loan) => {
+    if (!isAdmin) {
+      showToast('Hanya Administrator yang dapat menghapus transaksi.', 'error')
+      return
+    }
     if (!window.confirm(`Hapus riwayat peminjaman untuk "${loan.borrower_name}"?`)) return
     const res = await api.deleteLoan(loan.id)
     if (res.success) {
@@ -172,7 +240,10 @@ export default function App() {
       {/* Header / Navbar */}
       <Navbar
         isConnected={isConnected}
-        errorMessage={supabaseError}
+        currentUser={currentUser}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onLogout={handleLogout}
+        onOpenUserManagement={() => setIsUserManagementOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenLoanModal={() => handleOpenBorrowModal(null)}
         onRefresh={loadData}
@@ -193,7 +264,7 @@ export default function App() {
                   {supabaseError}
                 </p>
                 <p className="text-rose-700 mt-1">
-                  Jika pesan berupa <em>"permission denied"</em> atau <em>"table not found"</em>, jalankan ulang script <strong>supabase-schema.sql</strong> di SQL Editor Supabase untuk memberikan hak akses publik ke tabel.
+                  Jika tabel otentikasi (<code>app_users</code> & <code>app_settings</code>) belum dibuat di Supabase, jalankan file <strong>supabase-schema.sql</strong> di SQL Editor Supabase.
                 </p>
               </div>
             </div>
@@ -260,6 +331,7 @@ export default function App() {
         {activeTab === 'vehicles' ? (
           <VehicleGrid
             vehicles={vehicles}
+            isAdmin={isAdmin}
             onBorrow={handleOpenBorrowModal}
             onAddVehicle={handleOpenAddVehicle}
             onEditVehicle={handleOpenEditVehicle}
@@ -268,6 +340,8 @@ export default function App() {
         ) : (
           <LoanHistoryTable
             loans={loans}
+            isAdmin={isAdmin}
+            currentUser={currentUser}
             onReturnVehicle={handleReturnVehicle}
             onDeleteLoan={handleDeleteLoan}
           />
@@ -278,8 +352,16 @@ export default function App() {
       {/* Footer */}
       <footer className="border-t border-zinc-200/80 bg-white py-6 text-center text-xs text-zinc-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>© {new Date().getFullYear()} PinjamMobil. Murni Database Supabase.</p>
+          <p>© {new Date().getFullYear()} PinjamMobil. Sistem Peminjaman Kendaraan Operasional.</p>
           <div className="flex items-center gap-4 text-zinc-500">
+            {isAdmin && (
+              <>
+                <button onClick={() => setIsUserManagementOpen(true)} className="hover:text-zinc-900 cursor-pointer">
+                  Kelola Pengguna
+                </button>
+                <span>•</span>
+              </>
+            )}
             <button onClick={() => setIsSettingsOpen(true)} className="hover:text-zinc-900 cursor-pointer">
               Konfigurasi Supabase
             </button>
@@ -295,6 +377,7 @@ export default function App() {
       <LoanFormModal
         isOpen={isLoanModalOpen}
         onClose={() => setIsLoanModalOpen(false)}
+        currentUser={currentUser}
         selectedVehicle={selectedVehicle}
         availableVehicles={vehicles.filter(v => v.status === 'available')}
         onSubmit={handleSubmitLoan}
@@ -311,6 +394,26 @@ export default function App() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         onConfigSaved={loadData}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        isRegistrationAllowed={isRegistrationAllowed}
+        onLoginSuccess={handleLoginSuccess}
+        onLogin={(id, pass) => api.login(id, pass)}
+        onRegister={(data) => api.register(data)}
+      />
+
+      <UserManagementModal
+        isOpen={isUserManagementOpen}
+        onClose={() => setIsUserManagementOpen(false)}
+        currentUser={currentUser}
+        isRegistrationAllowed={isRegistrationAllowed}
+        onToggleRegistration={handleToggleRegistration}
+        onLoadUsers={() => api.getUsers()}
+        onUpdateRole={(userId, role) => api.updateUserRole(userId, role)}
+        onDeleteUser={(userId) => api.deleteUser(userId)}
       />
     </div>
   )

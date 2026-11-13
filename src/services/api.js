@@ -2,18 +2,12 @@ import { getSupabase } from '../lib/supabase'
 
 export const api = {
   // ==========================================
-  // 1. VEHICLES CRUD (MURNI SUPABASE)
+  // 1. VEHICLES CRUD
   // ==========================================
   
-  // READ
   async getVehicles() {
     const supabase = getSupabase()
-    if (!supabase) {
-      return { 
-        data: [], 
-        error: 'Klien Supabase belum terkonfigurasi. Pastikan URL dan API Key telah diisi.' 
-      }
-    }
+    if (!supabase) return { data: [], error: 'Klien Supabase belum terkonfigurasi.' }
 
     try {
       const { data, error } = await supabase
@@ -21,19 +15,14 @@ export const api = {
         .select('*')
         .order('id', { ascending: true })
 
-      if (error) {
-        console.error('Supabase getVehicles error:', error)
-        return { data: [], error: error.message || 'Gagal memuat data dari Supabase.' }
-      }
-
+      if (error) throw error
       return { data: data || [], error: null }
     } catch (err) {
-      console.error('Unexpected error getVehicles:', err)
-      return { data: [], error: err.message || 'Terjadi kesalahan koneksi.' }
+      console.error('Supabase getVehicles error:', err)
+      return { data: [], error: err.message || 'Gagal memuat kendaraan.' }
     }
   },
 
-  // CREATE
   async createVehicle(vehicleData) {
     const supabase = getSupabase()
     if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }
@@ -60,7 +49,6 @@ export const api = {
     }
   },
 
-  // UPDATE
   async updateVehicle(id, updates) {
     const supabase = getSupabase()
     if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }
@@ -80,7 +68,6 @@ export const api = {
     }
   },
 
-  // DELETE
   async deleteVehicle(id) {
     const supabase = getSupabase()
     if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }
@@ -100,15 +87,12 @@ export const api = {
   },
 
   // ==========================================
-  // 2. LOANS CRUD (MURNI SUPABASE)
+  // 2. LOANS CRUD
   // ==========================================
 
-  // READ
   async getLoans() {
     const supabase = getSupabase()
-    if (!supabase) {
-      return { data: [], error: 'Klien Supabase belum terkonfigurasi.' }
-    }
+    if (!supabase) return { data: [], error: 'Klien Supabase belum terkonfigurasi.' }
 
     try {
       const { data, error } = await supabase
@@ -116,10 +100,7 @@ export const api = {
         .select('*, vehicles(name, license_plate)')
         .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('Supabase getLoans error:', error)
-        return { data: [], error: error.message || 'Gagal memuat pinjaman.' }
-      }
+      if (error) throw error
 
       const formatted = (data || []).map(item => ({
         ...item,
@@ -129,12 +110,11 @@ export const api = {
 
       return { data: formatted, error: null }
     } catch (err) {
-      console.error('Unexpected error getLoans:', err)
+      console.error('Supabase getLoans error:', err)
       return { data: [], error: err.message }
     }
   },
 
-  // CREATE
   async createLoan(loanData) {
     const supabase = getSupabase()
     if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }
@@ -160,7 +140,6 @@ export const api = {
 
       if (error) throw error
 
-      // Update status armada menjadi borrowed
       await supabase
         .from('vehicles')
         .update({ status: 'borrowed' })
@@ -173,7 +152,6 @@ export const api = {
     }
   },
 
-  // UPDATE (Kembalikan Mobil)
   async returnVehicle(loanId, vehicleId, endMileage) {
     const supabase = getSupabase()
     if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }
@@ -206,7 +184,6 @@ export const api = {
     }
   },
 
-  // DELETE LOAN
   async deleteLoan(id) {
     const supabase = getSupabase()
     if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }
@@ -221,6 +198,179 @@ export const api = {
       return { success: true }
     } catch (err) {
       console.error('Supabase deleteLoan error:', err)
+      return { success: false, error: err.message }
+    }
+  },
+
+  // ==========================================
+  // 3. AUTHENTICATION & SETTINGS
+  // ==========================================
+
+  // Cek Pengaturan Apakah Registrasi Diizinkan (Default: false)
+  async getRegistrationStatus() {
+    const supabase = getSupabase()
+    if (!supabase) return false
+
+    try {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'allow_registration')
+        .single()
+
+      if (error || !data) return false
+      return data.value === 'true'
+    } catch (err) {
+      console.warn('Gagal membaca allow_registration:', err)
+      return false
+    }
+  },
+
+  // Admin Mengubah Pengaturan Registrasi (ON / OFF)
+  async setRegistrationStatus(enabled) {
+    const supabase = getSupabase()
+    if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
+
+    try {
+      const { error } = await supabase
+        .from('app_settings')
+        .upsert({
+          key: 'allow_registration',
+          value: enabled ? 'true' : 'false',
+          updated_at: new Date().toISOString()
+        })
+
+      if (error) throw error
+      return { success: true, enabled }
+    } catch (err) {
+      console.error('Gagal memperbarui status registrasi:', err)
+      return { success: false, error: err.message }
+    }
+  },
+
+  // Login User
+  async login(identifier, password) {
+    const supabase = getSupabase()
+    if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
+
+    try {
+      // Login bisa menggunakan username atau email
+      const { data, error } = await supabase
+        .from('app_users')
+        .select('id, username, email, name, role, division, password')
+        .or(`username.eq.${identifier},email.eq.${identifier}`)
+        .single()
+
+      if (error || !data) {
+        return { success: false, error: 'Username atau email tidak ditemukan.' }
+      }
+
+      if (data.password !== password) {
+        return { success: false, error: 'Kata sandi salah.' }
+      }
+
+      // Hapus password dari objek session
+      const { password: _, ...userSession } = data
+      return { success: true, user: userSession }
+    } catch (err) {
+      console.error('Login error:', err)
+      return { success: false, error: err.message || 'Gagal login.' }
+    }
+  },
+
+  // Register User Baru
+  async register(userData) {
+    const supabase = getSupabase()
+    if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
+
+    try {
+      // 1. Validasi apakah admin mengizinkan registrasi
+      const isAllowed = await this.getRegistrationStatus()
+      if (!isAllowed) {
+        return { 
+          success: false, 
+          error: 'Pendaftaran akun baru saat ini DINONAKTIFKAN oleh Administrator. Hubungi admin untuk dibuatkan akun.' 
+        }
+      }
+
+      // 2. Buat user baru dengan role default 'staff'
+      const { data, error } = await supabase
+        .from('app_users')
+        .insert([{
+          username: userData.username.trim().toLowerCase(),
+          email: userData.email.trim().toLowerCase(),
+          password: userData.password,
+          name: userData.name,
+          role: 'staff', // Default role
+          division: userData.division || 'Operasional'
+        }])
+        .select('id, username, email, name, role, division')
+        .single()
+
+      if (error) {
+        if (error.code === '23505') {
+          return { success: false, error: 'Username atau email tersebut sudah terdaftar.' }
+        }
+        throw error
+      }
+
+      return { success: true, user: data }
+    } catch (err) {
+      console.error('Register error:', err)
+      return { success: false, error: err.message || 'Gagal mendaftar akun baru.' }
+    }
+  },
+
+  // Ambil Semua Pengguna (Hanya untuk Admin)
+  async getUsers() {
+    const supabase = getSupabase()
+    if (!supabase) return { data: [], error: 'Klien Supabase belum siap.' }
+
+    try {
+      const { data, error } = await supabase
+        .from('app_users')
+        .select('id, username, email, name, role, division, created_at')
+        .order('id', { ascending: true })
+
+      if (error) throw error
+      return { data: data || [], error: null }
+    } catch (err) {
+      return { data: [], error: err.message }
+    }
+  },
+
+  // Ubah Role User (Admin Only)
+  async updateUserRole(userId, newRole) {
+    const supabase = getSupabase()
+    if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
+
+    try {
+      const { error } = await supabase
+        .from('app_users')
+        .update({ role: newRole })
+        .eq('id', userId)
+
+      if (error) throw error
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  },
+
+  // Hapus User (Admin Only)
+  async deleteUser(userId) {
+    const supabase = getSupabase()
+    if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
+
+    try {
+      const { error } = await supabase
+        .from('app_users')
+        .delete()
+        .eq('id', userId)
+
+      if (error) throw error
+      return { success: true }
+    } catch (err) {
       return { success: false, error: err.message }
     }
   }

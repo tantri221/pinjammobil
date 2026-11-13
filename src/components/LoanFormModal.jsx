@@ -3,7 +3,7 @@ import { Modal } from './ui/Modal'
 import { Button } from './ui/Button'
 import { Input, Select } from './ui/Input'
 
-export function LoanFormModal({ isOpen, onClose, selectedVehicle, availableVehicles = [], onSubmit }) {
+export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVehicle, availableVehicles = [], onSubmit }) {
   const [formData, setFormData] = useState({
     borrower_name: '',
     division: 'Sales',
@@ -18,7 +18,7 @@ export function LoanFormModal({ isOpen, onClose, selectedVehicle, availableVehic
 
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Initialize dates and preselected vehicle
+  // Initialize dates and preselected vehicle & user profile
   useEffect(() => {
     if (isOpen) {
       const now = new Date()
@@ -31,13 +31,15 @@ export function LoanFormModal({ isOpen, onClose, selectedVehicle, availableVehic
 
       setFormData(prev => ({
         ...prev,
+        borrower_name: currentUser?.name || prev.borrower_name || '',
+        division: currentUser?.division || prev.division || 'Sales',
         vehicle_id: selectedVehicle ? String(selectedVehicle.id) : (availableVehicles[0]?.id ? String(availableVehicles[0].id) : ''),
         start_mileage: selectedVehicle ? String(selectedVehicle.mileage || 0) : '',
         start_date: toLocalISO(now),
         end_date: toLocalISO(end)
       }))
     }
-  }, [isOpen, selectedVehicle, availableVehicles])
+  }, [isOpen, selectedVehicle, availableVehicles, currentUser])
 
   const handleVehicleChange = (e) => {
     const vId = e.target.value

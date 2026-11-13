@@ -6,7 +6,7 @@ import { Button } from './ui/Button'
 import { Modal } from './ui/Modal'
 import { Input } from './ui/Input'
 
-export function LoanHistoryTable({ loans = [], onReturnVehicle, onDeleteLoan }) {
+export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = null, onReturnVehicle, onDeleteLoan }) {
   const [returningLoan, setReturningLoan] = useState(null)
   const [endMileage, setEndMileage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -154,13 +154,15 @@ export function LoanHistoryTable({ loans = [], onReturnVehicle, onDeleteLoan }) 
                               </span>
                             )}
 
-                            <button
-                              onClick={() => onDeleteLoan(loan)}
-                              className="p-1 text-zinc-300 hover:text-rose-600 rounded transition-colors"
-                              title="Hapus riwayat pinjaman ini"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
+                            {isAdmin && (
+                              <button
+                                onClick={() => onDeleteLoan(loan)}
+                                className="p-1 text-zinc-300 hover:text-rose-600 rounded transition-colors cursor-pointer"
+                                title="Hapus riwayat pinjaman ini (Admin)"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
                           </div>
                         </td>
 

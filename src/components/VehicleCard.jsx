@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from './ui/Card'
 import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
 
-export function VehicleCard({ vehicle, onBorrow, onEdit, onDelete }) {
+export function VehicleCard({ vehicle, isAdmin = false, onBorrow, onEdit, onDelete }) {
   const statusConfig = {
     available: {
       label: 'Tersedia',
@@ -43,23 +43,25 @@ export function VehicleCard({ vehicle, onBorrow, onEdit, onDelete }) {
                 {currentStatus.label}
               </Badge>
               
-              {/* Quick actions for Edit / Delete */}
-              <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={() => onEdit(vehicle)}
-                  className="p-1 text-zinc-400 hover:text-zinc-700 rounded hover:bg-zinc-100 transition-colors"
-                  title="Edit data kendaraan"
-                >
-                  <Edit className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => onDelete(vehicle)}
-                  className="p-1 text-zinc-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors"
-                  title="Hapus kendaraan"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
+              {/* Quick actions for Edit / Delete (Admin Only) */}
+              {isAdmin && (
+                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => onEdit(vehicle)}
+                    className="p-1 text-zinc-400 hover:text-zinc-700 rounded hover:bg-zinc-100 transition-colors cursor-pointer"
+                    title="Edit data kendaraan (Admin)"
+                  >
+                    <Edit className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => onDelete(vehicle)}
+                    className="p-1 text-zinc-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors cursor-pointer"
+                    title="Hapus kendaraan (Admin)"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 

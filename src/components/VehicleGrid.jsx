@@ -4,7 +4,7 @@ import { VehicleCard } from './VehicleCard'
 import { Input } from './ui/Input'
 import { Button } from './ui/Button'
 
-export function VehicleGrid({ vehicles = [], onBorrow, onAddVehicle, onEditVehicle, onDeleteVehicle }) {
+export function VehicleGrid({ vehicles = [], isAdmin = false, onBorrow, onAddVehicle, onEditVehicle, onDeleteVehicle }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
 
@@ -51,7 +51,7 @@ export function VehicleGrid({ vehicles = [], onBorrow, onAddVehicle, onEditVehic
           ))}
         </div>
 
-        {/* Search Input & Add Vehicle Button */}
+        {/* Search Input & Add Vehicle Button (Admin Only) */}
         <div className="flex items-center gap-2">
           <div className="relative w-full sm:w-60">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
@@ -63,15 +63,17 @@ export function VehicleGrid({ vehicles = [], onBorrow, onAddVehicle, onEditVehic
             />
           </div>
 
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onAddVehicle}
-            className="text-xs h-9 shrink-0 gap-1"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Tambah Armada</span>
-          </Button>
+          {isAdmin && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onAddVehicle}
+              className="text-xs h-9 shrink-0 gap-1 bg-white hover:bg-zinc-100"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Tambah Armada</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -82,6 +84,7 @@ export function VehicleGrid({ vehicles = [], onBorrow, onAddVehicle, onEditVehic
             <VehicleCard
               key={vehicle.id}
               vehicle={vehicle}
+              isAdmin={isAdmin}
               onBorrow={onBorrow}
               onEdit={onEditVehicle}
               onDelete={onDeleteVehicle}

@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS public.vehicles (
     type VARCHAR(50) NOT NULL,
     status VARCHAR(20) DEFAULT 'available' CHECK (status IN ('available', 'borrowed', 'maintenance')),
     capacity INT DEFAULT 7,
-    fuel_level INT DEFAULT 100, -- Persentase 0-100%
-    mileage INT DEFAULT 0,      -- Total KM
+    fuel_level INT DEFAULT 100,
+    mileage INT DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -33,43 +33,73 @@ CREATE TABLE IF NOT EXISTS public.loans (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Berikan Hak Akses (GRANT) ke Role anon dan authenticated
+-- 3. Buat Tabel Pengguna Aplikasi (app_users)
+CREATE TABLE IF NOT EXISTS public.app_users (
+    id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(100) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    role VARCHAR(20) DEFAULT 'staff' CHECK (role IN ('admin', 'staff')),
+    division VARCHAR(50) DEFAULT 'Operasional',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 4. Buat Tabel Pengaturan Aplikasi (app_settings)
+CREATE TABLE IF NOT EXISTS public.app_settings (
+    key VARCHAR(50) PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 5. Berikan Hak Akses (GRANT) ke Role anon dan authenticated
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT ALL ON TABLE public.vehicles TO anon, authenticated;
 GRANT ALL ON TABLE public.loans TO anon, authenticated;
+GRANT ALL ON TABLE public.app_users TO anon, authenticated;
+GRANT ALL ON TABLE public.app_settings TO anon, authenticated;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
 
--- 4. Aktifkan Row Level Security (RLS)
+-- 6. Aktifkan Row Level Security (RLS)
 ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.loans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
 
--- 5. Kebijakan RLS (Policies)
-DROP POLICY IF EXISTS "Allow public read access for vehicles" ON public.vehicles;
-DROP POLICY IF EXISTS "Allow public update access for vehicles" ON public.vehicles;
-DROP POLICY IF EXISTS "Allow public read access for loans" ON public.loans;
-DROP POLICY IF EXISTS "Allow public insert access for loans" ON public.loans;
-DROP POLICY IF EXISTS "Allow public update access for loans" ON public.loans;
-DROP POLICY IF EXISTS "Allow public delete access for loans" ON public.loans;
+-- 7. Kebijakan RLS (Policies)
+DROP POLICY IF EXISTS "Allow public read vehicles" ON public.vehicles;
+DROP POLICY IF EXISTS "Allow public write vehicles" ON public.vehicles;
+DROP POLICY IF EXISTS "Allow public read loans" ON public.loans;
+DROP POLICY IF EXISTS "Allow public insert loans" ON public.loans;
+DROP POLICY IF EXISTS "Allow public update loans" ON public.loans;
+DROP POLICY IF EXISTS "Allow public delete loans" ON public.loans;
+DROP POLICY IF EXISTS "Allow public all app_users" ON public.app_users;
+DROP POLICY IF EXISTS "Allow public all app_settings" ON public.app_settings;
 
-CREATE POLICY "Allow public read access for vehicles" 
-ON public.vehicles FOR SELECT USING (true);
+CREATE POLICY "Allow public read vehicles" ON public.vehicles FOR SELECT USING (true);
+CREATE POLICY "Allow public write vehicles" ON public.vehicles FOR ALL USING (true);
 
-CREATE POLICY "Allow public write access for vehicles" 
-ON public.vehicles FOR ALL USING (true);
+CREATE POLICY "Allow public read loans" ON public.loans FOR SELECT USING (true);
+CREATE POLICY "Allow public insert loans" ON public.loans FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update loans" ON public.loans FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete loans" ON public.loans FOR DELETE USING (true);
 
-CREATE POLICY "Allow public read access for loans" 
-ON public.loans FOR SELECT USING (true);
+CREATE POLICY "Allow public all app_users" ON public.app_users FOR ALL USING (true);
+CREATE POLICY "Allow public all app_settings" ON public.app_settings FOR ALL USING (true);
 
-CREATE POLICY "Allow public insert access for loans" 
-ON public.loans FOR INSERT WITH CHECK (true);
+-- 8. Data Default Pengaturan: REGISTRASI SECARA DEFAULT MATI (false)
+INSERT INTO public.app_settings (key, value)
+VALUES ('allow_registration', 'false')
+ON CONFLICT (key) DO NOTHING;
 
-CREATE POLICY "Allow public update access for loans" 
-ON public.loans FOR UPDATE USING (true);
+-- 9. Data Default User & Role
+INSERT INTO public.app_users (username, email, password, name, role, division)
+VALUES 
+('admin', 'admin@pinjammobil.com', 'password123', 'Administrator IT', 'admin', 'IT & Operasional'),
+('staff', 'staff@pinjammobil.com', 'password123', 'Staff Operasional', 'staff', 'Sales')
+ON CONFLICT (username) DO NOTHING;
 
-CREATE POLICY "Allow public delete access for loans" 
-ON public.loans FOR DELETE USING (true);
-
--- 6. Data Awal Unit Kendaraan (Seed Data)
+-- 10. Data Awal Unit Kendaraan (Seed Data)
 INSERT INTO public.vehicles (name, license_plate, type, status, capacity, fuel_level, mileage)
 VALUES
 ('VELOZ TESTDRIVE', 'B 1024 TD', 'MPV', 'available', 7, 85, 12400),
