@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Car, Lock, UserCheck, Shield, Sparkles, Key, AlertCircle, Eye, EyeOff } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
+import { Car, Lock, UserCheck, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import { Card, CardContent } from './ui/Card'
 import { Button } from './ui/Button'
 import { Input, Select } from './ui/Input'
 import { api } from '../services/api'
@@ -32,36 +32,6 @@ export function LoginPage({ onLoginSuccess }) {
       setIsRegistrationAllowed(status)
     })
   }, [])
-
-  const handleQuickLoginAdmin = async () => {
-    setIsLoading(true)
-    setErrorMessage('')
-    try {
-      const res = await api.login('admin', 'password123')
-      if (res.success) {
-        onLoginSuccess(res.user)
-      } else {
-        setErrorMessage(res.error || 'Gagal login admin.')
-      }
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleQuickLoginStaff = async () => {
-    setIsLoading(true)
-    setErrorMessage('')
-    try {
-      const res = await api.login('staff', 'password123')
-      if (res.success) {
-        onLoginSuccess(res.user)
-      } else {
-        setErrorMessage(res.error || 'Gagal login staff.')
-      }
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault()
@@ -155,93 +125,47 @@ export function LoginPage({ onLoginSuccess }) {
 
             {/* TAB: LOGIN */}
             {activeTab === 'login' && (
-              <div className="space-y-4">
-                <form onSubmit={handleLoginSubmit} className="space-y-3.5">
-                  <div>
-                    <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                      Username atau Email
-                    </label>
+              <form onSubmit={handleLoginSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 mb-1.5">
+                    Username atau Email
+                  </label>
+                  <Input
+                    required
+                    autoFocus
+                    placeholder="Masukkan username atau email"
+                    value={identifier}
+                    onChange={e => setIdentifier(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 mb-1.5">
+                    Kata Sandi
+                  </label>
+                  <div className="relative">
                     <Input
+                      type={showPassword ? 'text' : 'password'}
                       required
-                      placeholder="Masukkan username atau email"
-                      value={identifier}
-                      onChange={e => setIdentifier(e.target.value)}
+                      placeholder="Masukkan kata sandi"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                      Kata Sandi
-                    </label>
-                    <div className="relative">
-                      <Input
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={e => setPassword(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-2.5 text-zinc-400 hover:text-zinc-600 cursor-pointer"
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <Button type="submit" className="w-full text-xs h-10 mt-1" disabled={isLoading}>
-                    {isLoading ? 'Memeriksa Kredensial...' : 'Masuk ke Sistem'}
-                  </Button>
-                </form>
-
-                {/* Quick 1-Click Access Buttons */}
-                <div className="pt-4 border-t border-zinc-100">
-                  <div className="text-[11px] font-semibold text-zinc-500 flex items-center gap-1.5 mb-2.5">
-                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                    <span>Akses Cepat Sekali Klik:</span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {/* Admin 1-Click */}
                     <button
                       type="button"
-                      disabled={isLoading}
-                      onClick={handleQuickLoginAdmin}
-                      className="p-3 rounded-xl border border-zinc-200 bg-zinc-50 hover:bg-zinc-100/90 text-left transition-all group cursor-pointer hover:border-zinc-300 shadow-xs"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-2.5 text-zinc-400 hover:text-zinc-600 cursor-pointer"
+                      tabIndex={-1}
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-bold text-xs text-zinc-900 flex items-center gap-1">
-                          👑 Login Admin
-                        </span>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-900 text-white font-semibold">
-                          1-Klik
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-zinc-500 font-mono">admin / password123</div>
-                    </button>
-
-                    {/* Staff 1-Click */}
-                    <button
-                      type="button"
-                      disabled={isLoading}
-                      onClick={handleQuickLoginStaff}
-                      className="p-3 rounded-xl border border-zinc-200 bg-zinc-50 hover:bg-zinc-100/90 text-left transition-all group cursor-pointer hover:border-zinc-300 shadow-xs"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-bold text-xs text-zinc-900 flex items-center gap-1">
-                          👤 Login Staff
-                        </span>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-200 text-zinc-700 font-semibold">
-                          1-Klik
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-zinc-500 font-mono">staff / password123</div>
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
-              </div>
+
+                <Button type="submit" className="w-full text-xs h-10 mt-2" disabled={isLoading}>
+                  {isLoading ? 'Memeriksa Kredensial...' : 'Masuk ke Sistem'}
+                </Button>
+              </form>
             )}
 
             {/* TAB: REGISTER */}
@@ -259,7 +183,7 @@ export function LoginPage({ onLoginSuccess }) {
                       </p>
                     </div>
                     <div className="p-2.5 rounded-lg bg-white border border-zinc-200 text-[11px] text-zinc-600">
-                      Silakan masuk menggunakan akun <strong>Admin</strong> atau <strong>Staff</strong> yang sudah disediakan.
+                      Silakan hubungi Administrator IT untuk pembuatan akun Anda.
                     </div>
                     <Button 
                       variant="outline" 

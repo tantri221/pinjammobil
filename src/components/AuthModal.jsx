@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Modal } from './ui/Modal'
 import { Button } from './ui/Button'
 import { Input, Select } from './ui/Input'
-import { Lock, UserCheck, ShieldAlert, Key, User, Mail, Sparkles } from 'lucide-react'
+import { Lock, UserCheck, Eye, EyeOff } from 'lucide-react'
 
 export function AuthModal({ 
   isOpen, 
@@ -12,13 +12,12 @@ export function AuthModal({
   onLogin, 
   onRegister 
 }) {
-  const [activeTab, setActiveTab] = useState('login') // 'login' | 'register'
+  const [activeTab, setActiveTab] = useState('login')
   
-  // Login form state
   const [loginIdentifier, setLoginIdentifier] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   
-  // Register form state
   const [regData, setRegData] = useState({
     name: '',
     username: '',
@@ -36,11 +35,6 @@ export function AuthModal({
     }
   }, [isOpen, activeTab])
 
-  const handleQuickFill = (u, p) => {
-    setLoginIdentifier(u)
-    setLoginPassword(p)
-  }
-
   const handleLoginSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
@@ -51,7 +45,7 @@ export function AuthModal({
         onLoginSuccess(res.user)
         onClose()
       } else {
-        setErrorMessage(res.error || 'Username atau password salah.')
+        setErrorMessage(res.error || 'Username atau kata sandi salah.')
       }
     } finally {
       setIsLoading(false)
@@ -110,7 +104,7 @@ export function AuthModal({
             <span>Daftar Akun</span>
             {!isRegistrationAllowed && (
               <span className="text-[10px] px-1 py-0.2 rounded bg-zinc-100 text-zinc-500 font-normal">
-                Nonaktif
+                Tutup
               </span>
             )}
           </button>
@@ -132,7 +126,7 @@ export function AuthModal({
               </label>
               <Input
                 required
-                placeholder="admin atau admin@pinjammobil.com"
+                placeholder="Masukkan username atau email"
                 value={loginIdentifier}
                 onChange={e => setLoginIdentifier(e.target.value)}
               />
@@ -142,41 +136,21 @@ export function AuthModal({
               <label className="block text-xs font-semibold text-zinc-700 mb-1">
                 Kata Sandi
               </label>
-              <Input
-                type="password"
-                required
-                placeholder="••••••••"
-                value={loginPassword}
-                onChange={e => setLoginPassword(e.target.value)}
-              />
-            </div>
-
-            {/* Quick Fill Default Users Helper */}
-            <div className="pt-1">
-              <span className="text-[11px] text-zinc-400 flex items-center gap-1 mb-1.5 font-medium">
-                <Sparkles className="h-3 w-3 text-amber-500" />
-                Pilihan Akun Cepat (Bawaan):
-              </span>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="relative">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  placeholder="Masukkan kata sandi"
+                  value={loginPassword}
+                  onChange={e => setLoginPassword(e.target.value)}
+                />
                 <button
                   type="button"
-                  onClick={() => handleQuickFill('admin', 'password123')}
-                  className="p-2 rounded-lg border border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-left text-xs transition-colors cursor-pointer"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-2.5 text-zinc-400 hover:text-zinc-600 cursor-pointer"
+                  tabIndex={-1}
                 >
-                  <div className="font-bold text-zinc-800 flex items-center gap-1">
-                    👑 Role Admin
-                  </div>
-                  <div className="text-[10px] text-zinc-500 font-mono">admin / password123</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickFill('staff', 'password123')}
-                  className="p-2 rounded-lg border border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-left text-xs transition-colors cursor-pointer"
-                >
-                  <div className="font-bold text-zinc-800 flex items-center gap-1">
-                    👤 Role Staff
-                  </div>
-                  <div className="text-[10px] text-zinc-500 font-mono">staff / password123</div>
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
@@ -200,12 +174,9 @@ export function AuthModal({
                 <div>
                   <h4 className="font-bold text-zinc-800 text-sm">Pendaftaran Ditutup</h4>
                   <p className="text-xs text-zinc-500 mt-1 max-w-xs mx-auto">
-                    Secara default, pendaftaran akun baru dinonaktifkan oleh Administrator untuk keamanan kantor.
+                    Pendaftaran akun baru dinonaktifkan oleh Administrator untuk keamanan kantor.
                   </p>
                 </div>
-                <p className="text-[11px] text-zinc-400">
-                  Silakan login dengan akun <strong>Admin</strong> untuk mengaktifkan fitur registrasi ini di menu Pengaturan Pengguna.
-                </p>
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -219,7 +190,7 @@ export function AuthModal({
               <form onSubmit={handleRegisterSubmit} className="space-y-3">
                 <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] flex items-center gap-1.5">
                   <UserCheck className="h-3.5 w-3.5 shrink-0" />
-                  <span>Pendaftaran dibuka oleh Admin. Akun baru akan memiliki role <strong>Staff</strong>.</span>
+                  <span>Pendaftaran dibuka oleh Admin. Role baru: <strong>Staff</strong>.</span>
                 </div>
 
                 <div>
