@@ -173,6 +173,38 @@ export const api = {
     return approvalData
   },
 
+  parseSecurityData(loan) {
+    let secData = {
+      gate_status: 'standby', // 'standby' (siap keluar) | 'out' (sedang di luar) | 'in' (telah kembali)
+      out_time: null,
+      out_km: loan.start_mileage || 0,
+      out_by: null,
+      out_notes: '',
+      in_time: null,
+      in_km: loan.end_mileage || null,
+      in_by: null,
+      in_notes: '',
+      in_fuel: null
+    }
+
+    if (loan.notes && loan.notes.includes('__SECURITY_DATA__:')) {
+      try {
+        const secPart = loan.notes.split('__SECURITY_DATA__:')[1].split('__APPROVAL_DATA__:')[0]
+        const parsed = JSON.parse(secPart.trim())
+        secData = { ...secData, ...parsed }
+      } catch (e) {}
+    } else {
+      if (loan.status === 'completed') {
+        secData.gate_status = 'in'
+        secData.in_km = loan.end_mileage
+      } else if (loan.status === 'approved') {
+        secData.gate_status = 'standby'
+      }
+    }
+
+    return secData
+  },
+
   async getLoans() {
     const supabase = getSupabase()
     if (!supabase) return { data: [], error: 'Klien Supabase belum terkonfigurasi.' }
@@ -203,7 +235,7 @@ export const api = {
         const buy_fuel = buyFuelRaw.startsWith('YA') ? 'YA' : 'TIDAK'
         const fuel_amount = buyFuelRaw.includes('- Rp') ? buyFuelRaw.split('- Rp')[1].trim() : ''
 
-        let cleanNote = item.notes?.split('__APPROVAL_DATA__:')[0]?.trim() || ''
+        let cleanNote = item.notes?.split('__APPROVAL_DATA__:')[0]?.split('__SECURITY_DATA__:')[0]?.trim() || ''
         cleanNote = cleanNote
           .replace(/\[BBM Awal:\s*[^\]]+\]/gi, '')
           .replace(/\[Beli BBM:\s*[^\]]+\]/gi, '')
@@ -222,7 +254,8 @@ export const api = {
           buy_fuel,
           fuel_amount,
           displayNotes: cleanNote,
-          approvals: this.parseLoanApprovals(item)
+          approvals: this.parseLoanApprovals(item),
+          security: this.parseSecurityData(item)
         }
       })
 
@@ -382,13 +415,17 @@ export const api = {
         newOverallStatus = 'approved'
       }
 
-      const baseNote = loan.notes && loan.notes.includes('__APPROVAL_DATA__:')
-        ? loan.notes.split('__APPROVAL_DATA__:')[0].trim()
-        : (loan.notes || '').trim()
+      const currentSec = this.parseSecurityData(loan)
+      let baseNote = (loan.notes || '')
+        .split('__SECURITY_DATA__:')[0]
+        .split('__APPROVAL_DATA__:')[0]
+        .trim()
 
-      const newNotes = baseNote 
-        ? `${baseNote}\n\n__APPROVAL_DATA__:${JSON.stringify(currentApprovals)}`
-        : `__APPROVAL_DATA__:${JSON.stringify(currentApprovals)}`
+      let newNotes = baseNote
+      if (loan.notes && loan.notes.includes('__SECURITY_DATA__:')) {
+        newNotes += (newNotes ? '\n\n' : '') + `__SECURITY_DATA__:${JSON.stringify(currentSec)}`
+      }
+      newNotes += (newNotes ? '\n\n' : '') + `__APPROVAL_DATA__:${JSON.stringify(currentApprovals)}`
 
       const payload = {
         status: newOverallStatus,
@@ -457,6 +494,134 @@ export const api = {
     } catch (err) {
       console.error('Supabase returnVehicle error:', err)
       return { success: false, error: err.message }
+    }
+  },
+
+  async recordSecurityGateOut(loanId, gateData, securityUser) {
+    const supabase = getSupabase()
+    if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }
+
+    try {
+      const { data: loan, error: fetchErr } = await supabase
+        .from('loans')
+        .select('*')
+        .eq('id', loanId)
+        .single()
+
+      if (fetchErr || !loan) {
+        return { success: false, error: 'Data peminjaman tidak ditemukan.' }
+      }
+
+      const currentSec = this.parseSecurityData(loan)
+      currentSec.gate_status = 'out'
+      currentSec.out_time = new Date().toISOString()
+      currentSec.out_km = Number(gateData.out_km || loan.start_mileage || 0)
+      currentSec.out_by = securityUser?.name || 'Petugas Security'
+      currentSec.out_notes = (gateData.out_notes || '').trim()
+
+      const currentApprovals = this.parseLoanApprovals(loan)
+
+      let baseNote = (loan.notes || '')
+        .split('__SECURITY_DATA__:')[0]
+        .split('__APPROVAL_DATA__:')[0]
+        .trim()
+
+      let newNotes = baseNote
+      newNotes += (newNotes ? '\n\n' : '') + `__SECURITY_DATA__:${JSON.stringify(currentSec)}`
+      newNotes += `\n\n__APPROVAL_DATA__:${JSON.stringify(currentApprovals)}`
+
+      const payload = {
+        notes: newNotes,
+        start_mileage: currentSec.out_km
+      }
+
+      const { error: updateErr } = await supabase
+        .from('loans')
+        .update(payload)
+        .eq('id', loanId)
+
+      if (updateErr) throw updateErr
+
+      if (loan.vehicle_id) {
+        await supabase
+          .from('vehicles')
+          .update({ status: 'borrowed' })
+          .eq('id', loan.vehicle_id)
+      }
+
+      return { success: true, data: currentSec }
+    } catch (err) {
+      console.error('recordSecurityGateOut error:', err)
+      return { success: false, error: err.message || 'Gagal mencatat mobil keluar.' }
+    }
+  },
+
+  async recordSecurityGateIn(loanId, vehicleId, gateData, securityUser) {
+    const supabase = getSupabase()
+    if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }
+
+    try {
+      const { data: loan, error: fetchErr } = await supabase
+        .from('loans')
+        .select('*')
+        .eq('id', loanId)
+        .single()
+
+      if (fetchErr || !loan) {
+        return { success: false, error: 'Data peminjaman tidak ditemukan.' }
+      }
+
+      const currentSec = this.parseSecurityData(loan)
+      currentSec.gate_status = 'in'
+      currentSec.in_time = new Date().toISOString()
+      currentSec.in_km = Number(gateData.in_km || 0)
+      currentSec.in_by = securityUser?.name || 'Petugas Security'
+      currentSec.in_notes = (gateData.in_notes || '').trim()
+      if (gateData.in_fuel) currentSec.in_fuel = gateData.in_fuel
+
+      const currentApprovals = this.parseLoanApprovals(loan)
+
+      let baseNote = (loan.notes || '')
+        .split('__SECURITY_DATA__:')[0]
+        .split('__APPROVAL_DATA__:')[0]
+        .trim()
+
+      let newNotes = baseNote
+      newNotes += (newNotes ? '\n\n' : '') + `__SECURITY_DATA__:${JSON.stringify(currentSec)}`
+      newNotes += `\n\n__APPROVAL_DATA__:${JSON.stringify(currentApprovals)}`
+
+      const payload = {
+        status: 'completed',
+        end_mileage: currentSec.in_km,
+        notes: newNotes
+      }
+
+      const { error: loanErr } = await supabase
+        .from('loans')
+        .update(payload)
+        .eq('id', loanId)
+
+      if (loanErr) throw loanErr
+
+      if (vehicleId || loan.vehicle_id) {
+        const vId = vehicleId || loan.vehicle_id
+        const vUpdate = {
+          status: 'available',
+          mileage: currentSec.in_km
+        }
+        if (gateData.fuel_level !== undefined && gateData.fuel_level !== null) {
+          vUpdate.fuel_level = Number(gateData.fuel_level)
+        }
+        await supabase
+          .from('vehicles')
+          .update(vUpdate)
+          .eq('id', vId)
+      }
+
+      return { success: true, data: currentSec }
+    } catch (err) {
+      console.error('recordSecurityGateIn error:', err)
+      return { success: false, error: err.message || 'Gagal mencatat mobil kembali.' }
     }
   },
 

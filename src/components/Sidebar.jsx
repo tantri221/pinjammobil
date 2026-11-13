@@ -23,7 +23,8 @@ export function Sidebar({
   onLogout,
   loanCount = 0,
   vehicleCount = 0,
-  pendingApprovalCount = 0
+  pendingApprovalCount = 0,
+  securityPendingCount = 0
 }) {
   const isAdmin = currentUser?.role === 'admin'
   const initial = currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'
@@ -44,6 +45,9 @@ export function Sidebar({
   } else if (userRole === 'adh') {
     roleTitle = 'ADMIN HEAD (ADH)'
     roleBadgeClass = 'bg-purple-500/20 text-purple-300 border-purple-400/30'
+  } else if (userRole === 'security') {
+    roleTitle = 'PETUGAS SECURITY'
+    roleBadgeClass = 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30'
   }
 
   return (
@@ -152,6 +156,27 @@ export function Sidebar({
             {pendingApprovalCount > 0 && (
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black shadow-xs">
                 {pendingApprovalCount}
+              </span>
+            )}
+          </button>
+
+          {/* Menu 4: Pengecekan Security (Mobil Keluar & Mobil Kembali) */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('security')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold transition flex items-center justify-between cursor-pointer ${
+              activeTab === 'security'
+                ? 'bg-sky-600 text-white shadow-md'
+                : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4" />
+              <span>Pengecekan Security</span>
+            </div>
+            {securityPendingCount > 0 && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 font-black shadow-xs">
+                {securityPendingCount}
               </span>
             )}
           </button>

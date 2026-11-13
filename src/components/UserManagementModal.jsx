@@ -283,6 +283,13 @@ export function UserManagementModal({
                                     </span>
                                   )
                                 }
+                                if (r === 'security') {
+                                  return (
+                                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-50 text-emerald-800 border-emerald-300">
+                                      🛡️ Security
+                                    </span>
+                                  )
+                                }
                                 return (
                                   <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-sky-50 text-sky-700 border-sky-300">
                                     👤 Staff
@@ -425,6 +432,7 @@ export function UserManagementModal({
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white focus:border-sky-500 outline-none font-bold"
               >
                 <option value="staff">👤 Staff / Peminjam</option>
+                <option value="security">🛡️ Petugas Security</option>
                 <option value="ga">🛠️ General Affairs (GA)</option>
                 <option value="spv">👔 Supervisor (SPV)</option>
                 <option value="adh">🏛️ Administration Head (ADH)</option>
@@ -568,6 +576,7 @@ export function UserManagementModal({
               className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white focus:border-sky-500 outline-none font-bold"
             >
               <option value="staff">👤 Staff / Peminjam</option>
+              <option value="security">🛡️ Petugas Security</option>
               <option value="ga">🛠️ General Affairs (GA)</option>
               <option value="spv">👔 Supervisor (SPV)</option>
               <option value="adh">🏛️ Administration Head (ADH)</option>

@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar'
 import { VehicleGrid } from './components/VehicleGrid'
 import { LoanHistoryTable } from './components/LoanHistoryTable'
 import { ApprovalCenter } from './components/ApprovalCenter'
+import { SecurityCheck } from './components/SecurityCheck'
 import { LoanFormModal } from './components/LoanFormModal'
 import { VehicleFormModal } from './components/VehicleFormModal'
 import { SupabaseSettingsModal } from './components/SupabaseSettingsModal'
@@ -278,6 +279,30 @@ export default function App() {
     }
   }
 
+  const handleSecurityGateOut = async (loanId, gateData, securityUser) => {
+    const res = await api.recordSecurityGateOut(loanId, gateData, securityUser)
+    if (res.success) {
+      showToast('Armada resmi tercatat keluar pos security.')
+      loadData()
+      return { success: true }
+    } else {
+      showToast(res.error || 'Gagal mencatat mobil keluar.', 'error')
+      return { success: false, error: res.error }
+    }
+  }
+
+  const handleSecurityGateIn = async (loanId, vehicleId, gateData, securityUser) => {
+    const res = await api.recordSecurityGateIn(loanId, vehicleId, gateData, securityUser)
+    if (res.success) {
+      showToast('Armada telah kembali di pos security & siap digunakan berikutnya.')
+      loadData()
+      return { success: true }
+    } else {
+      showToast(res.error || 'Gagal mencatat mobil kembali.', 'error')
+      return { success: false, error: res.error }
+    }
+  }
+
   // WAJIB LOGIN DULU
   if (!currentUser) {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />
@@ -285,6 +310,10 @@ export default function App() {
 
   const availableCount = vehicles.filter(v => v.status === 'available').length
   const borrowedCount = vehicles.filter(v => v.status === 'borrowed').length
+  const securityPendingCount = loans.filter(l => {
+    const sec = l.security || {}
+    return l.status === 'approved' && sec.gate_status !== 'in'
+  }).length
 
   return (
     <div className="min-h-screen bg-[#f0f4f8] py-5 px-3 sm:px-6 lg:px-8 text-slate-800 font-sans selection:bg-sky-600 selection:text-white">
@@ -317,6 +346,7 @@ export default function App() {
           loanCount={loans.filter(l => l.status !== 'completed').length}
           vehicleCount={vehicles.length}
           pendingApprovalCount={loans.filter(l => l.status === 'pending').length}
+          securityPendingCount={securityPendingCount}
         />
 
         {/* KOLOM KANAN: KONTEN UTAMA (75% LEBAR) */}
@@ -336,11 +366,13 @@ export default function App() {
                   {activeTab === 'vehicles' && 'Status Ketersediaan & Armada Mobil'}
                   {activeTab === 'loans' && 'Histori & Transaksi Peminjaman Unit'}
                   {activeTab === 'approvals' && 'Pusat Verifikasi & Persetujuan'}
+                  {activeTab === 'security' && 'Pos Pengecekan Security'}
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                   {activeTab === 'vehicles' && 'Daftar armada kendaraan operasional yang tersedia beserta status terkini.'}
                   {activeTab === 'loans' && 'Catatan seluruh transaksi peminjaman kendaraan aktif maupun selesai.'}
                   {activeTab === 'approvals' && 'Alur otorisasi berjenjang: 1. Verifikasi GA (semua armada) ➔ 2. Persetujuan SPV (khusus Test Drive) ➔ 3. Persetujuan ADH (semua unit).'}
+                  {activeTab === 'security' && 'Pemeriksaan fisik, kilometer, serta serah terima kunci untuk Mobil Keluar & Mobil Kembali di pos gerbang.'}
                 </p>
               </div>
 
@@ -435,6 +467,17 @@ export default function App() {
               loans={loans}
               currentUser={currentUser}
               onUpdateApproval={handleUpdateApproval}
+              onRefresh={loadData}
+            />
+          )}
+
+          {/* TAB 4: PENGECEKAN SECURITY (MOBIL KELUAR & MOBIL KEMBALI) */}
+          {activeTab === 'security' && (
+            <SecurityCheck
+              loans={loans}
+              currentUser={currentUser}
+              onGateOut={handleSecurityGateOut}
+              onGateIn={handleSecurityGateIn}
               onRefresh={loadData}
             />
           )}
