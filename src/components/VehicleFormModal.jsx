@@ -4,15 +4,6 @@ import { Button } from './ui/Button'
 import { Input, Select } from './ui/Input'
 
 export function VehicleFormModal({ isOpen, onClose, vehicleToEdit = null, onSubmit }) {
-  const getInitialClassification = (v) => {
-    if (v?.classification) return v.classification
-    const name = (v?.name || '').toLowerCase()
-    const plate = (v?.license_plate || '').toLowerCase()
-    if (name.includes('test') || plate.includes('td')) return 'Kendaraan Test Drive'
-    if (name.includes('ast')) return 'Kendaraan AST'
-    return 'Kendaraan Oprasional / Aset'
-  }
-
   const [formData, setFormData] = useState({
     name: '',
     license_plate: '',
@@ -31,7 +22,7 @@ export function VehicleFormModal({ isOpen, onClose, vehicleToEdit = null, onSubm
       setFormData({
         name: vehicleToEdit.name || '',
         license_plate: vehicleToEdit.license_plate || '',
-        classification: getInitialClassification(vehicleToEdit),
+        classification: vehicleToEdit.classification || 'Kendaraan Oprasional / Aset',
         type: vehicleToEdit.type || 'MPV',
         status: vehicleToEdit.status || 'available',
         capacity: vehicleToEdit.capacity || 7,

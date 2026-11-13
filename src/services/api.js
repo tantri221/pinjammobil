@@ -23,13 +23,7 @@ export const api = {
 
       const formatted = (data || []).map(v => ({
         ...v,
-        classification: v.classification || (
-          (v.name?.toLowerCase().includes('test') || v.license_plate?.toLowerCase().includes('td'))
-            ? 'Kendaraan Test Drive'
-            : v.name?.toLowerCase().includes('ast')
-            ? 'Kendaraan AST'
-            : 'Kendaraan Oprasional / Aset'
-        )
+        classification: v.classification || 'Kendaraan Oprasional / Aset'
       }))
 
       return { data: formatted, error: null }
@@ -186,7 +180,7 @@ export const api = {
     try {
       const { data, error } = await supabase
         .from('loans')
-        .select('*, vehicles(name, license_plate, type)')
+        .select('*, vehicles(name, license_plate, type, classification)')
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -213,6 +207,7 @@ export const api = {
           vehicle_name: item.vehicles?.name || item.vehicle_name,
           license_plate: item.vehicles?.license_plate || item.license_plate,
           vehicle_type: item.vehicles?.type || item.vehicle_type,
+          classification: item.vehicles?.classification || item.classification || 'Kendaraan Oprasional / Aset',
           is_test_drive: isTD,
           start_fuel,
           buy_fuel,
@@ -234,13 +229,13 @@ export const api = {
     if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }
 
     try {
-      // Periksa apakah armada adalah unit TEST DRIVE
+      // Periksa apakah armada adalah unit TEST DRIVE berdasarkan klasifikasi yang ditentukan Administrator
       let isTD = isTestDriveLoan(loanData)
       if (!isTD && loanData.vehicle_id) {
         try {
           const { data: vData } = await supabase
             .from('vehicles')
-            .select('name, license_plate, type')
+            .select('name, license_plate, type, classification')
             .eq('id', loanData.vehicle_id)
             .single()
           if (vData && isTestDriveLoan(null, vData)) {
@@ -320,7 +315,7 @@ export const api = {
     try {
       const { data: loan, error: fetchErr } = await supabase
         .from('loans')
-        .select('*, vehicles(name, license_plate, type)')
+        .select('*, vehicles(name, license_plate, type, classification)')
         .eq('id', loanId)
         .single()
 
