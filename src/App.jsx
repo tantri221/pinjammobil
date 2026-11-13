@@ -90,7 +90,7 @@ export default function App() {
     }
   }, [currentUser, loadData])
 
-  // --- Auth Handlers ---
+  // --- Auth & User Management Handlers ---
   const handleLoginSuccess = (user) => {
     setCurrentUser(user)
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user))
@@ -110,6 +110,33 @@ export default function App() {
       showToast(newStatus ? 'Pendaftaran akun publik DIBUKA.' : 'Pendaftaran akun publik DITUTUP.')
     } else {
       showToast(res.error || 'Gagal mengubah status pendaftaran.', 'error')
+    }
+  }
+
+  const handleUpdateUser = async (userId, userData) => {
+    const res = await api.updateUser(userId, userData)
+    if (res.success) {
+      showToast('Data akun pengguna berhasil diperbarui!')
+      // Jika admin mengedit akun miliknya sendiri, sinkronkan sesi lokal
+      if (currentUser?.id === userId) {
+        const updatedSelf = { ...currentUser, ...userData }
+        delete updatedSelf.password
+        setCurrentUser(updatedSelf)
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(updatedSelf))
+      }
+      return { success: true }
+    } else {
+      showToast(res.error || 'Gagal memperbarui data akun.', 'error')
+      return { success: false, error: res.error }
+    }
+  }
+
+  const handleDeleteUser = async (userId) => {
+    const res = await api.deleteUser(userId)
+    if (res.success) {
+      showToast('Pengguna berhasil dihapus.')
+    } else {
+      showToast(res.error || 'Gagal menghapus pengguna.', 'error')
     }
   }
 
@@ -382,8 +409,8 @@ export default function App() {
         isRegistrationAllowed={isRegistrationAllowed}
         onToggleRegistration={handleToggleRegistration}
         onLoadUsers={() => api.getUsers()}
-        onUpdateRole={(userId, role) => api.updateUserRole(userId, role)}
-        onDeleteUser={(userId) => api.deleteUser(userId)}
+        onUpdateUser={handleUpdateUser}
+        onDeleteUser={handleDeleteUser}
       />
 
     </div>

@@ -206,7 +206,6 @@ export const api = {
   // 3. AUTHENTICATION & SETTINGS
   // ==========================================
 
-  // Cek Pengaturan Apakah Registrasi Diizinkan (Default: false)
   async getRegistrationStatus() {
     const supabase = getSupabase()
     if (!supabase) return false
@@ -226,7 +225,6 @@ export const api = {
     }
   },
 
-  // Admin Mengubah Pengaturan Registrasi (ON / OFF)
   async setRegistrationStatus(enabled) {
     const supabase = getSupabase()
     if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
@@ -248,13 +246,11 @@ export const api = {
     }
   },
 
-  // Login User
   async login(identifier, password) {
     const supabase = getSupabase()
     if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
 
     try {
-      // Login bisa menggunakan username atau email
       const { data, error } = await supabase
         .from('app_users')
         .select('id, username, email, name, role, division, password')
@@ -269,7 +265,6 @@ export const api = {
         return { success: false, error: 'Kata sandi salah.' }
       }
 
-      // Hapus password dari objek session
       const { password: _, ...userSession } = data
       return { success: true, user: userSession }
     } catch (err) {
@@ -278,22 +273,19 @@ export const api = {
     }
   },
 
-  // Register User Baru
   async register(userData) {
     const supabase = getSupabase()
     if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
 
     try {
-      // 1. Validasi apakah admin mengizinkan registrasi
       const isAllowed = await this.getRegistrationStatus()
       if (!isAllowed) {
         return { 
           success: false, 
-          error: 'Pendaftaran akun baru saat ini DINONAKTIFKAN oleh Administrator. Hubungi admin untuk dibuatkan akun.' 
+          error: 'Pendaftaran akun baru saat ini DINONAKTIFKAN oleh Administrator.' 
         }
       }
 
-      // 2. Buat user baru dengan role default 'staff'
       const { data, error } = await supabase
         .from('app_users')
         .insert([{
@@ -301,7 +293,7 @@ export const api = {
           email: userData.email.trim().toLowerCase(),
           password: userData.password,
           name: userData.name,
-          role: 'staff', // Default role
+          role: 'staff',
           division: userData.division || 'Operasional'
         }])
         .select('id, username, email, name, role, division')
@@ -321,7 +313,6 @@ export const api = {
     }
   },
 
-  // Ambil Semua Pengguna (Hanya untuk Admin)
   async getUsers() {
     const supabase = getSupabase()
     if (!supabase) return { data: [], error: 'Klien Supabase belum siap.' }
@@ -339,7 +330,44 @@ export const api = {
     }
   },
 
-  // Ubah Role User (Admin Only)
+  // Edit / Update Akun Pengguna Penuh (Admin Only)
+  async updateUser(userId, userData) {
+    const supabase = getSupabase()
+    if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
+
+    try {
+      const payload = {
+        name: userData.name,
+        username: userData.username.trim().toLowerCase(),
+        email: userData.email.trim().toLowerCase(),
+        division: userData.division,
+        role: userData.role
+      }
+
+      if (userData.password && userData.password.trim() !== '') {
+        payload.password = userData.password.trim()
+      }
+
+      const { data, error } = await supabase
+        .from('app_users')
+        .update(payload)
+        .eq('id', userId)
+        .select()
+
+      if (error) {
+        if (error.code === '23505') {
+          return { success: false, error: 'Username atau email sudah digunakan oleh user lain.' }
+        }
+        throw error
+      }
+
+      return { success: true, user: data[0] }
+    } catch (err) {
+      console.error('Update user error:', err)
+      return { success: false, error: err.message || 'Gagal memperbarui data pengguna.' }
+    }
+  },
+
   async updateUserRole(userId, newRole) {
     const supabase = getSupabase()
     if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
@@ -357,7 +385,6 @@ export const api = {
     }
   },
 
-  // Hapus User (Admin Only)
   async deleteUser(userId) {
     const supabase = getSupabase()
     if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }

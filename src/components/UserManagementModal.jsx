@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Modal } from './ui/Modal'
-import { Button } from './ui/Button'
-import { Badge } from './ui/Badge'
-import { Users, Shield, User, Trash2, Check, Power, AlertCircle } from 'lucide-react'
+import { Users, Shield, User, Trash2, Edit3, Power, Key, Sparkles, Check, AlertCircle } from 'lucide-react'
 
 export function UserManagementModal({ 
   isOpen, 
@@ -11,12 +9,25 @@ export function UserManagementModal({
   isRegistrationAllowed,
   onToggleRegistration,
   onLoadUsers,
-  onUpdateRole,
+  onUpdateUser,
   onDeleteUser
 }) {
   const [users, setUsers] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [isTogglingReg, setIsTogglingReg] = useState(false)
+
+  // Edit user state
+  const [editingUser, setEditingUser] = useState(null)
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    username: '',
+    email: '',
+    division: 'Sales',
+    role: 'staff',
+    password: ''
+  })
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false)
+  const [editError, setEditError] = useState('')
 
   const fetchUsers = async () => {
     setIsLoading(true)
@@ -31,6 +42,7 @@ export function UserManagementModal({
   useEffect(() => {
     if (isOpen) {
       fetchUsers()
+      setEditingUser(null)
     }
   }, [isOpen])
 
@@ -43,10 +55,39 @@ export function UserManagementModal({
     }
   }
 
-  const handleRoleChange = async (userId, currentRole) => {
-    const newRole = currentRole === 'admin' ? 'staff' : 'admin'
-    await onUpdateRole(userId, newRole)
-    fetchUsers()
+  const handleOpenEdit = (u) => {
+    setEditingUser(u)
+    setEditFormData({
+      name: u.name || '',
+      username: u.username || '',
+      email: u.email || '',
+      division: u.division || 'Sales',
+      role: u.role || 'staff',
+      password: ''
+    })
+    setEditError('')
+  }
+
+  const handleSetDefaultPassword = () => {
+    setEditFormData(prev => ({ ...prev, password: 'password123' }))
+  }
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault()
+    if (!editingUser) return
+    setIsSubmittingEdit(true)
+    setEditError('')
+    try {
+      const res = await onUpdateUser(editingUser.id, editFormData)
+      if (res.success) {
+        setEditingUser(null)
+        fetchUsers()
+      } else {
+        setEditError(res.error || 'Gagal memperbarui pengguna.')
+      }
+    } finally {
+      setIsSubmittingEdit(false)
+    }
   }
 
   const handleDelete = async (u) => {
@@ -54,144 +95,300 @@ export function UserManagementModal({
       alert('Anda tidak bisa menghapus akun Anda sendiri.')
       return
     }
-    if (!window.confirm(`Yakin ingin menghapus user "${u.name}" (${u.username})?`)) return
+    if (!window.confirm(`Yakin ingin menghapus user "${u.name}" (@${u.username})?`)) return
     await onDeleteUser(u.id)
     fetchUsers()
   }
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Kelola Pengguna & Pengaturan Registrasi"
-      description="Halaman otoritas khusus Administrator IT untuk mengatur akses pengguna."
-      maxWidth="max-w-2xl"
-    >
-      <div className="space-y-5 text-xs sm:text-sm">
-        
-        {/* Registration Toggle Setting Card */}
-        <div className="p-4 rounded-xl border border-zinc-200 bg-zinc-50/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2 font-bold text-zinc-900 text-sm">
-              <Power className={`h-4 w-4 ${isRegistrationAllowed ? 'text-emerald-600' : 'text-zinc-400'}`} />
-              <span>Status Fitur Registrasi Publik</span>
-              <Badge variant={isRegistrationAllowed ? 'success' : 'secondary'} className="text-[10px]">
-                {isRegistrationAllowed ? 'AKTIF (DIBUKA)' : 'MATI (DITUTUP)'}
-              </Badge>
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Kelola Pengguna & Registrasi"
+        description="Otoritas Administrator IT untuk mengubah akun pengguna dan pengaturan pendaftaran."
+        maxWidth="max-w-2xl"
+      >
+        <div className="space-y-5 text-xs sm:text-sm">
+          
+          {/* Card Pengaturan Status Registrasi Publik */}
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 font-bold text-slate-800 text-sm">
+                <Power className={`h-4 w-4 ${isRegistrationAllowed ? 'text-emerald-600' : 'text-slate-400'}`} />
+                <span>Status Fitur Registrasi Publik</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                  isRegistrationAllowed 
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
+                    : 'bg-slate-200 text-slate-700 border-slate-300'
+                }`}>
+                  {isRegistrationAllowed ? 'AKTIF (DIBUKA)' : 'MATI (DITUTUP)'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                {isRegistrationAllowed 
+                  ? 'Siapapun dapat mendaftarkan akun baru melalui menu "Daftar Akun" di halaman login.' 
+                  : 'Pendaftaran ditutup. Hanya Admin yang dapat mengelola atau memberikan akun user.'}
+              </p>
             </div>
-            <p className="text-xs text-zinc-500 mt-1">
-              {isRegistrationAllowed 
-                ? 'Siapapun dapat mendaftarkan akun baru melalui tombol "Daftar Akun" di halaman login.' 
-                : 'Pendaftaran akun baru ditutup. Hanya Admin yang dapat mengelola atau memberikan akun.'}
-            </p>
+
+            <button
+              disabled={isTogglingReg}
+              onClick={handleToggle}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer shrink-0 ${
+                isRegistrationAllowed 
+                  ? 'bg-rose-600 hover:bg-rose-700 text-white' 
+                  : 'bg-slate-900 hover:bg-slate-800 text-white'
+              }`}
+            >
+              {isRegistrationAllowed ? 'Tutup Pendaftaran' : 'Buka Pendaftaran'}
+            </button>
           </div>
 
-          <Button
-            size="sm"
-            variant={isRegistrationAllowed ? 'destructive' : 'default'}
-            disabled={isTogglingReg}
-            onClick={handleToggle}
-            className="shrink-0 text-xs h-9"
-          >
-            {isRegistrationAllowed ? 'Tutup Pendaftaran' : 'Buka Pendaftaran'}
-          </Button>
-        </div>
+          {/* Daftar Pengguna */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                <Users className="h-4 w-4 text-sky-600" />
+                <span>Daftar Akun Pengguna ({users.length})</span>
+              </h4>
+            </div>
 
-        {/* User List Table */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h4 className="font-bold text-zinc-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
-              <Users className="h-3.5 w-3.5" />
-              <span>Daftar Pengguna ({users.length})</span>
-            </h4>
-          </div>
-
-          <div className="border border-zinc-200 rounded-xl overflow-hidden bg-white">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-500 font-semibold text-[10px] uppercase">
-                  <tr>
-                    <th className="py-2.5 px-3">Nama & Username</th>
-                    <th className="py-2.5 px-3">Email & Divisi</th>
-                    <th className="py-2.5 px-3">Role Akses</th>
-                    <th className="py-2.5 px-3 text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100 text-zinc-700">
-                  {users.length === 0 ? (
+            <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold text-[10px] uppercase">
                     <tr>
-                      <td colSpan={4} className="py-6 text-center text-zinc-400 text-xs">
-                        {isLoading ? 'Memuat daftar pengguna...' : 'Tidak ada data pengguna.'}
-                      </td>
+                      <th className="py-3 px-3.5">Nama & Username</th>
+                      <th className="py-3 px-3.5">Email & Divisi</th>
+                      <th className="py-3 px-3.5">Wewenang Role</th>
+                      <th className="py-3 px-3.5 text-right">Aksi</th>
                     </tr>
-                  ) : (
-                    users.map(u => {
-                      const isMe = u.id === currentUser?.id
-                      const isAdmin = u.role === 'admin'
-                      return (
-                        <tr key={u.id} className="hover:bg-zinc-50/80 transition-colors">
-                          <td className="py-2.5 px-3">
-                            <div className="font-semibold text-zinc-900 flex items-center gap-1">
-                              {u.name}
-                              {isMe && (
-                                <span className="text-[10px] px-1 rounded bg-zinc-100 text-zinc-600 font-normal">
-                                  Anda
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] font-mono text-zinc-400">@{u.username}</div>
-                          </td>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {users.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="py-8 text-center text-slate-400 text-xs font-medium">
+                          {isLoading ? 'Memuat daftar pengguna...' : 'Tidak ada data pengguna.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      users.map(u => {
+                        const isMe = u.id === currentUser?.id
+                        const isAdmin = u.role === 'admin'
+                        return (
+                          <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-3 px-3.5">
+                              <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                                <span>{u.name}</span>
+                                {isMe && (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-sky-100 text-sky-700 border border-sky-200">
+                                    Anda
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] font-mono text-slate-400">@{u.username}</div>
+                            </td>
 
-                          <td className="py-2.5 px-3">
-                            <div>{u.email}</div>
-                            <div className="text-[11px] text-zinc-400">{u.division}</div>
-                          </td>
+                            <td className="py-3 px-3.5">
+                              <div className="font-medium text-slate-800">{u.email}</div>
+                              <div className="text-[11px] text-slate-400">Divisi {u.division}</div>
+                            </td>
 
-                          <td className="py-2.5 px-3">
-                            <Badge variant={isAdmin ? 'default' : 'secondary'} className="text-[10px]">
-                              {isAdmin ? '👑 Admin' : '👤 Staff'}
-                            </Badge>
-                          </td>
+                            <td className="py-3 px-3.5">
+                              <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                                isAdmin 
+                                  ? 'bg-amber-50 text-amber-800 border-amber-300' 
+                                  : 'bg-sky-50 text-sky-700 border-sky-300'
+                              }`}>
+                                {isAdmin ? '👑 Admin' : '👤 Staff'}
+                              </span>
+                            </td>
 
-                          <td className="py-2.5 px-3 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              {!isMe && (
-                                <>
-                                  <button
-                                    onClick={() => handleRoleChange(u.id, u.role)}
-                                    className="px-2 py-1 rounded text-[11px] font-medium border border-zinc-200 hover:bg-zinc-100 transition-colors cursor-pointer"
-                                    title="Ubah wewenang role user ini"
-                                  >
-                                    {isAdmin ? 'Ubah ke Staff' : 'Jadikan Admin'}
-                                  </button>
+                            <td className="py-3 px-3.5 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {/* Tombol Edit Akun */}
+                                <button
+                                  onClick={() => handleOpenEdit(u)}
+                                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition flex items-center gap-1 cursor-pointer"
+                                  title="Edit data akun pengguna ini"
+                                >
+                                  <Edit3 className="h-3.5 w-3.5" />
+                                  <span>Edit</span>
+                                </button>
+
+                                {/* Tombol Hapus User */}
+                                {!isMe && (
                                   <button
                                     onClick={() => handleDelete(u)}
-                                    className="p-1 rounded text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                                    title="Hapus akun pengguna ini"
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                                    title="Hapus akun pengguna"
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </button>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })
-                  )}
-                </tbody>
-              </table>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="pt-2 flex justify-end">
-          <Button variant="outline" size="sm" onClick={onClose}>
-            Tutup
-          </Button>
-        </div>
+          <div className="pt-2 flex justify-end">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
+            >
+              Tutup
+            </button>
+          </div>
 
-      </div>
-    </Modal>
+        </div>
+      </Modal>
+
+      {/* DIALOG POPUP: EDIT AKUN PENGGUNA (STYLE LEGACY) */}
+      <Modal
+        isOpen={Boolean(editingUser)}
+        onClose={() => setEditingUser(null)}
+        title="🔑 Edit Data Akun Pengguna"
+        description="Otoritas Administrator IT untuk mengubah profil, wewenang role, atau reset password user."
+        maxWidth="max-w-md"
+      >
+        {editingUser && (
+          <form onSubmit={handleSaveEdit} className="space-y-4 text-xs sm:text-sm">
+            
+            {editError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-rose-500 shrink-0" />
+                <span>{editError}</span>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Nama Lengkap <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={editFormData.name}
+                onChange={e => setEditFormData({ ...editFormData, name: e.target.value })}
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:border-sky-500 outline-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Username <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editFormData.username}
+                  onChange={e => setEditFormData({ ...editFormData, username: e.target.value })}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:border-sky-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Divisi
+                </label>
+                <select
+                  value={editFormData.division}
+                  onChange={e => setEditFormData({ ...editFormData, division: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white focus:border-sky-500 outline-none"
+                >
+                  <option value="Sales">Sales</option>
+                  <option value="Admin">Admin</option>
+                  <option value="Servis">Servis</option>
+                  <option value="IT Support">IT Support</option>
+                  <option value="Operasional">Operasional</option>
+                  <option value="Manajemen">Manajemen / Direksi</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Email Kantor <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                required
+                value={editFormData.email}
+                onChange={e => setEditFormData({ ...editFormData, email: e.target.value })}
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:border-sky-500 outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Role / Wewenang
+              </label>
+              <select
+                value={editFormData.role}
+                onChange={e => setEditFormData({ ...editFormData, role: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white focus:border-sky-500 outline-none font-bold"
+              >
+                <option value="staff">👤 Staff / Peminjam</option>
+                <option value="admin">👑 Administrator IT</option>
+              </select>
+            </div>
+
+            {/* Reset Password Field */}
+            <div className="pt-2 border-t border-slate-200">
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  Reset Kata Sandi Baru (Opsional)
+                </label>
+                <button
+                  type="button"
+                  onClick={handleSetDefaultPassword}
+                  className="text-[11px] font-bold text-sky-600 hover:underline cursor-pointer"
+                >
+                  ⚡ Set Default (password123)
+                </button>
+              </div>
+              <input
+                type="text"
+                placeholder="Kosongkan jika tidak ingin mengubah sandi"
+                value={editFormData.password}
+                onChange={e => setEditFormData({ ...editFormData, password: e.target.value })}
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:border-sky-500 outline-none font-mono"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Isi kolom ini hanya jika user lupa kata sandi atau ingin di-reset.
+              </p>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingUser(null)}
+                disabled={isSubmittingEdit}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmittingEdit}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white shadow-xs transition cursor-pointer"
+              >
+                {isSubmittingEdit ? 'Menyimpan...' : 'Simpan Perubahan Akun'}
+              </button>
+            </div>
+
+          </form>
+        )}
+      </Modal>
+    </>
   )
 }
