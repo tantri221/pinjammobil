@@ -28,10 +28,15 @@ CREATE TABLE IF NOT EXISTS public.loans (
     end_date TIMESTAMPTZ NOT NULL,
     start_mileage INT DEFAULT 0,
     end_mileage INT,
-    status VARCHAR(20) DEFAULT 'approved' CHECK (status IN ('pending', 'approved', 'rejected', 'completed')),
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'completed')),
     notes TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Opsional: Tambah kolom verifikasi & persetujuan berjenjang
+ALTER TABLE public.loans ADD COLUMN IF NOT EXISTS approval_spv VARCHAR(20) DEFAULT 'pending';
+ALTER TABLE public.loans ADD COLUMN IF NOT EXISTS approval_ga VARCHAR(20) DEFAULT 'pending';
+ALTER TABLE public.loans ADD COLUMN IF NOT EXISTS approval_adh VARCHAR(20) DEFAULT 'pending';
 
 -- 3. Buat Tabel Pengguna Aplikasi (app_users)
 CREATE TABLE IF NOT EXISTS public.app_users (

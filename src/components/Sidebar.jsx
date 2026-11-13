@@ -9,7 +9,8 @@ import {
   Database, 
   LogOut, 
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  CheckSquare
 } from 'lucide-react'
 
 export function Sidebar({
@@ -21,7 +22,8 @@ export function Sidebar({
   onOpenSettings,
   onLogout,
   loanCount = 0,
-  vehicleCount = 0
+  vehicleCount = 0,
+  pendingApprovalCount = 0
 }) {
   const isAdmin = currentUser?.role === 'admin'
   const initial = currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'
@@ -129,6 +131,27 @@ export function Sidebar({
             {loanCount > 0 && (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/30 text-sky-200 border border-sky-400/30 font-mono">
                 {loanCount}
+              </span>
+            )}
+          </button>
+
+          {/* Menu 3: Verifikasi & Persetujuan (GA, SPV, ADH) */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('approvals')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold transition flex items-center justify-between cursor-pointer ${
+              activeTab === 'approvals'
+                ? 'bg-sky-600 text-white shadow-md'
+                : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <CheckSquare className="h-4 w-4" />
+              <span>Verifikasi & Persetujuan</span>
+            </div>
+            {pendingApprovalCount > 0 && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black shadow-xs">
+                {pendingApprovalCount}
               </span>
             )}
           </button>

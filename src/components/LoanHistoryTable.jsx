@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Clock, MapPin, Check, CornerDownLeft, Trash2 } from 'lucide-react'
+import { Clock, MapPin, Check, CornerDownLeft, Trash2, XCircle, CheckCircle2, Car } from 'lucide-react'
 import { Modal } from './ui/Modal'
 
 export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = null, onReturnVehicle, onDeleteLoan }) {
@@ -126,9 +126,17 @@ export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = nu
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <Check className="h-3 w-3 text-emerald-600" /> Selesai
                           </span>
-                        ) : (
+                        ) : loan.status === 'pending' ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                            <Clock className="h-3 w-3 text-amber-600" /> Sedang Dipinjam
+                            <Clock className="h-3 w-3 text-amber-600" /> Menunggu Persetujuan
+                          </span>
+                        ) : loan.status === 'rejected' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                            <XCircle className="h-3 w-3 text-rose-600" /> Ditolak
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                            <Car className="h-3 w-3 text-blue-600" /> Sedang Dipinjam
                           </span>
                         )}
                       </td>
@@ -136,7 +144,7 @@ export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = nu
                       {/* Aksi */}
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {!isCompleted ? (
+                          {loan.status === 'approved' ? (
                             <button
                               onClick={() => handleOpenReturn(loan)}
                               className="px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white shadow-xs transition flex items-center gap-1 cursor-pointer"
@@ -144,9 +152,13 @@ export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = nu
                               <CornerDownLeft className="h-3 w-3" />
                               <span>Kembalikan</span>
                             </button>
-                          ) : (
+                          ) : isCompleted ? (
                             <span className="text-[11px] font-mono text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-200">
                               {loan.end_mileage ? `${loan.end_mileage.toLocaleString()} KM` : '-'}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 italic">
+                              {loan.status === 'rejected' ? 'Pengajuan dibatalkan' : 'Menunggu otorisasi'}
                             </span>
                           )}
 

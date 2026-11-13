@@ -90,6 +90,43 @@ export const api = {
   // 2. LOANS CRUD
   // ==========================================
 
+  parseLoanApprovals(loan) {
+    let approvalData = {
+      spv: { status: 'pending', by: null, at: null, note: '' },
+      ga: { status: 'pending', by: null, at: null, note: '' },
+      adh: { status: 'pending', by: null, at: null, note: '' }
+    }
+
+    if (loan.approval_spv) approvalData.spv.status = loan.approval_spv
+    if (loan.approval_ga) approvalData.ga.status = loan.approval_ga
+    if (loan.approval_adh) approvalData.adh.status = loan.approval_adh
+
+    if (loan.notes) {
+      try {
+        if (loan.notes.includes('__APPROVAL_DATA__:')) {
+          const jsonPart = loan.notes.split('__APPROVAL_DATA__:')[1]
+          const parsed = JSON.parse(jsonPart)
+          approvalData = { ...approvalData, ...parsed }
+        } else if (loan.notes.trim().startsWith('{') && loan.notes.trim().endsWith('}')) {
+          const parsed = JSON.parse(loan.notes)
+          if (parsed.approvals) {
+            approvalData = { ...approvalData, ...parsed.approvals }
+          }
+        }
+      } catch (e) {
+        // fallback
+      }
+    }
+
+    if (loan.status === 'completed' || loan.status === 'approved') {
+      if (approvalData.spv.status === 'pending') approvalData.spv.status = 'approved'
+      if (approvalData.ga.status === 'pending') approvalData.ga.status = 'approved'
+      if (approvalData.adh.status === 'pending') approvalData.adh.status = 'approved'
+    }
+
+    return approvalData
+  },
+
   async getLoans() {
     const supabase = getSupabase()
     if (!supabase) return { data: [], error: 'Klien Supabase belum terkonfigurasi.' }
@@ -105,7 +142,8 @@ export const api = {
       const formatted = (data || []).map(item => ({
         ...item,
         vehicle_name: item.vehicles?.name || item.vehicle_name,
-        license_plate: item.vehicles?.license_plate || item.license_plate
+        license_plate: item.vehicles?.license_plate || item.license_plate,
+        approvals: this.parseLoanApprovals(item)
       }))
 
       return { data: formatted, error: null }
@@ -120,6 +158,17 @@ export const api = {
     if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }
 
     try {
+      const initialApprovals = {
+        spv: { status: 'pending', by: null, at: null, note: '' },
+        ga: { status: 'pending', by: null, at: null, note: '' },
+        adh: { status: 'pending', by: null, at: null, note: '' }
+      }
+
+      const userNote = (loanData.notes || '').trim()
+      const notesWithApproval = userNote
+        ? `${userNote}\n\n__APPROVAL_DATA__:${JSON.stringify(initialApprovals)}`
+        : `__APPROVAL_DATA__:${JSON.stringify(initialApprovals)}`
+
       const payload = {
         vehicle_id: Number(loanData.vehicle_id),
         borrower_name: loanData.borrower_name,
@@ -129,8 +178,8 @@ export const api = {
         start_date: loanData.start_date,
         end_date: loanData.end_date,
         start_mileage: Number(loanData.start_mileage || 0),
-        status: 'approved',
-        notes: loanData.notes || ''
+        status: 'pending',
+        notes: notesWithApproval
       }
 
       const { data, error } = await supabase
@@ -140,15 +189,96 @@ export const api = {
 
       if (error) throw error
 
-      await supabase
-        .from('vehicles')
-        .update({ status: 'borrowed' })
-        .eq('id', loanData.vehicle_id)
-
       return { success: true, data: data[0] }
     } catch (err) {
       console.error('Supabase createLoan error:', err)
       return { success: false, error: err.message }
+    }
+  },
+
+  async updateLoanApproval(loanId, stage, action, approverUser, note = '') {
+    const supabase = getSupabase()
+    if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
+
+    try {
+      const { data: loan, error: fetchErr } = await supabase
+        .from('loans')
+        .select('*')
+        .eq('id', loanId)
+        .single()
+
+      if (fetchErr || !loan) {
+        return { success: false, error: 'Data peminjaman tidak ditemukan.' }
+      }
+
+      const currentApprovals = this.parseLoanApprovals(loan)
+      currentApprovals[stage] = {
+        status: action,
+        by: approverUser?.name || 'Otorisator',
+        role: approverUser?.role || 'staff',
+        at: new Date().toISOString(),
+        note: (note || '').trim()
+      }
+
+      // Hitung status keseluruhan
+      let newOverallStatus = 'pending'
+      if (
+        currentApprovals.spv?.status === 'rejected' ||
+        currentApprovals.ga?.status === 'rejected' ||
+        currentApprovals.adh?.status === 'rejected'
+      ) {
+        newOverallStatus = 'rejected'
+      } else if (
+        currentApprovals.spv?.status === 'approved' &&
+        currentApprovals.ga?.status === 'approved' &&
+        currentApprovals.adh?.status === 'approved'
+      ) {
+        newOverallStatus = 'approved'
+      }
+
+      const baseNote = loan.notes && loan.notes.includes('__APPROVAL_DATA__:')
+        ? loan.notes.split('__APPROVAL_DATA__:')[0].trim()
+        : (loan.notes || '').trim()
+
+      const newNotes = baseNote 
+        ? `${baseNote}\n\n__APPROVAL_DATA__:${JSON.stringify(currentApprovals)}`
+        : `__APPROVAL_DATA__:${JSON.stringify(currentApprovals)}`
+
+      const payload = {
+        status: newOverallStatus,
+        notes: newNotes
+      }
+
+      const { error: updateErr } = await supabase
+        .from('loans')
+        .update(payload)
+        .eq('id', loanId)
+
+      if (updateErr) throw updateErr
+
+      // Sinkronkan status armada
+      if (loan.vehicle_id) {
+        if (newOverallStatus === 'approved') {
+          await supabase
+            .from('vehicles')
+            .update({ status: 'borrowed' })
+            .eq('id', loan.vehicle_id)
+        } else if (newOverallStatus === 'rejected') {
+          await supabase
+            .from('vehicles')
+            .update({ status: 'available' })
+            .eq('id', loan.vehicle_id)
+        }
+      }
+
+      return { 
+        success: true, 
+        overallStatus: newOverallStatus, 
+        approvals: currentApprovals 
+      }
+    } catch (err) {
+      console.error('Update approval error:', err)
+      return { success: false, error: err.message || 'Gagal memproses persetujuan.' }
     }
   },
 

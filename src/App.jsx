@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { VehicleGrid } from './components/VehicleGrid'
 import { LoanHistoryTable } from './components/LoanHistoryTable'
+import { ApprovalCenter } from './components/ApprovalCenter'
 import { LoanFormModal } from './components/LoanFormModal'
 import { VehicleFormModal } from './components/VehicleFormModal'
 import { SupabaseSettingsModal } from './components/SupabaseSettingsModal'
@@ -252,6 +253,19 @@ export default function App() {
     }
   }
 
+  const handleUpdateApproval = async (loanId, stage, action, approverUser, note) => {
+    const res = await api.updateLoanApproval(loanId, stage, action, approverUser, note)
+    if (res.success) {
+      const stageNames = { ga: 'Verifikasi GA', spv: 'Persetujuan SPV', adh: 'Persetujuan ADH' }
+      showToast(`${stageNames[stage]} berhasil: ${action === 'approved' ? 'DISETUJUI' : 'DITOLAK'}`)
+      loadData()
+      return { success: true }
+    } else {
+      showToast(res.error || 'Gagal memproses persetujuan.', 'error')
+      return { success: false, error: res.error }
+    }
+  }
+
   // WAJIB LOGIN DULU
   if (!currentUser) {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />
@@ -290,6 +304,7 @@ export default function App() {
           onLogout={handleLogout}
           loanCount={loans.filter(l => l.status !== 'completed').length}
           vehicleCount={vehicles.length}
+          pendingApprovalCount={loans.filter(l => l.status === 'pending').length}
         />
 
         {/* KOLOM KANAN: KONTEN UTAMA (75% LEBAR) */}
@@ -306,12 +321,14 @@ export default function App() {
                   </span>
                 </div>
                 <h1 className="text-xl sm:text-2xl font-bold text-slate-800 mt-1.5">
-                  {activeTab === 'vehicles' ? 'Status Ketersediaan & Armada Mobil' : 'Histori & Transaksi Peminjaman Unit'}
+                  {activeTab === 'vehicles' && 'Status Ketersediaan & Armada Mobil'}
+                  {activeTab === 'loans' && 'Histori & Transaksi Peminjaman Unit'}
+                  {activeTab === 'approvals' && 'Pusat Verifikasi & Persetujuan'}
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                  {activeTab === 'vehicles' 
-                    ? 'Daftar armada kendaraan operasional yang tersedia beserta status terkini.' 
-                    : 'Catatan seluruh transaksi peminjaman kendaraan aktif maupun selesai.'}
+                  {activeTab === 'vehicles' && 'Daftar armada kendaraan operasional yang tersedia beserta status terkini.'}
+                  {activeTab === 'loans' && 'Catatan seluruh transaksi peminjaman kendaraan aktif maupun selesai.'}
+                  {activeTab === 'approvals' && 'Workflow otorisasi berjenjang oleh General Affairs (GA), Supervisor (SPV), dan Admin Head (ADH).'}
                 </p>
               </div>
 
@@ -396,6 +413,16 @@ export default function App() {
               currentUser={currentUser}
               onReturnVehicle={handleReturnVehicle}
               onDeleteLoan={handleDeleteLoan}
+            />
+          )}
+
+          {/* TAB 3: VERIFIKASI & PERSETUJUAN (GA, SPV, ADH) */}
+          {activeTab === 'approvals' && (
+            <ApprovalCenter
+              loans={loans}
+              currentUser={currentUser}
+              onUpdateApproval={handleUpdateApproval}
+              onRefresh={loadData}
             />
           )}
 
