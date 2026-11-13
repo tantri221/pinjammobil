@@ -178,10 +178,19 @@ export const api = {
     if (!supabase) return { data: [], error: 'Klien Supabase belum terkonfigurasi.' }
 
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('loans')
         .select('*, vehicles(name, license_plate, type, classification)')
         .order('created_at', { ascending: false })
+
+      if (error && (error.code === '42703' || String(error.message).includes('classification') || String(error.message).includes('vehicles_1.classification'))) {
+        const fallback = await supabase
+          .from('loans')
+          .select('*, vehicles(name, license_plate, type)')
+          .order('created_at', { ascending: false })
+        data = fallback.data
+        error = fallback.error
+      }
 
       if (error) throw error
 
@@ -233,11 +242,21 @@ export const api = {
       let isTD = isTestDriveLoan(loanData)
       if (!isTD && loanData.vehicle_id) {
         try {
-          const { data: vData } = await supabase
+          let { data: vData, error: vErr } = await supabase
             .from('vehicles')
             .select('name, license_plate, type, classification')
             .eq('id', loanData.vehicle_id)
             .single()
+
+          if (vErr && (vErr.code === '42703' || String(vErr.message).includes('classification'))) {
+            const fallback = await supabase
+              .from('vehicles')
+              .select('name, license_plate, type')
+              .eq('id', loanData.vehicle_id)
+              .single()
+            vData = fallback.data
+          }
+
           if (vData && isTestDriveLoan(null, vData)) {
             isTD = true
           }
@@ -313,11 +332,21 @@ export const api = {
     if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
 
     try {
-      const { data: loan, error: fetchErr } = await supabase
+      let { data: loan, error: fetchErr } = await supabase
         .from('loans')
         .select('*, vehicles(name, license_plate, type, classification)')
         .eq('id', loanId)
         .single()
+
+      if (fetchErr && (fetchErr.code === '42703' || String(fetchErr.message).includes('classification') || String(fetchErr.message).includes('vehicles_1.classification'))) {
+        const fallback = await supabase
+          .from('loans')
+          .select('*, vehicles(name, license_plate, type)')
+          .eq('id', loanId)
+          .single()
+        loan = fallback.data
+        fetchErr = fallback.error
+      }
 
       if (fetchErr || !loan) {
         return { success: false, error: 'Data peminjaman tidak ditemukan.' }
