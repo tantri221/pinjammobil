@@ -1,11 +1,11 @@
 import React from 'react'
-import { Car, Database, Plus, RefreshCw, AlertTriangle } from 'lucide-react'
+import { Car, Database, Plus, RefreshCw, AlertCircle } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
 
 export function Navbar({ 
-  supabaseStatus, 
-  isTableMissing,
+  isConnected, 
+  errorMessage,
   onOpenSettings, 
   onOpenLoanModal, 
   onRefresh, 
@@ -24,7 +24,7 @@ export function Navbar({
             <div className="flex items-center gap-2">
               <span className="font-bold text-base tracking-tight text-zinc-900">PinjamMobil</span>
               <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200">
-                v2.0 Modular
+                Supabase Live
               </span>
             </div>
             <p className="text-[11px] text-zinc-400 hidden sm:block">Sistem Peminjaman Kendaraan Operasional</p>
@@ -37,28 +37,18 @@ export function Navbar({
           <button
             onClick={onOpenSettings}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
-              supabaseStatus 
-                ? 'bg-emerald-50/80 border-emerald-200 text-emerald-800'
-                : isTableMissing
-                ? 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100'
-                : 'bg-white hover:bg-zinc-50 border-zinc-200 text-zinc-700'
+              isConnected 
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-rose-50 border-rose-200 text-rose-800 hover:bg-rose-100'
             }`}
-            title="Klik untuk konfigurasi koneksi Supabase"
+            title="Klik untuk konfigurasi kunci Supabase"
           >
             <div className={`h-2 w-2 rounded-full ${
-              supabaseStatus 
-                ? 'bg-emerald-500 animate-pulse' 
-                : isTableMissing
-                ? 'bg-amber-500'
-                : 'bg-zinc-400'
+              isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
             }`} />
             <span className="hidden md:inline">Database:</span>
             <span className="font-semibold">
-              {supabaseStatus 
-                ? 'Supabase Connected' 
-                : isTableMissing 
-                ? 'Tabel Supabase Belum Dibuat' 
-                : 'Local Demo Mode'}
+              {isConnected ? 'Supabase Connected' : 'Supabase Disconnected'}
             </span>
           </button>
 
@@ -68,7 +58,7 @@ export function Navbar({
             onClick={onRefresh}
             disabled={isRefreshing}
             className="h-8 px-2.5 hidden sm:inline-flex"
-            title="Muat ulang data"
+            title="Muat ulang data dari Supabase"
           >
             <RefreshCw className={`h-3.5 w-3.5 text-zinc-600 ${isRefreshing ? 'animate-spin' : ''}`} />
           </Button>

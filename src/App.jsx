@@ -8,13 +8,12 @@ import { VehicleFormModal } from './components/VehicleFormModal'
 import { SupabaseSettingsModal } from './components/SupabaseSettingsModal'
 import { api } from './services/api'
 import { getSupabaseConfig } from './lib/supabase'
-import { Car, Clock, CheckCircle2, AlertCircle, AlertTriangle, ExternalLink } from 'lucide-react'
+import { Car, Clock, CheckCircle2, AlertCircle, AlertTriangle, ExternalLink, RefreshCw } from 'lucide-react'
 
 export default function App() {
   const [vehicles, setVehicles] = useState([])
   const [loans, setLoans] = useState([])
-  const [dataSource, setDataSource] = useState('local')
-  const [isTableMissing, setIsTableMissing] = useState(false)
+  const [supabaseError, setSupabaseError] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   
   // Navigation Tabs
@@ -39,18 +38,27 @@ export default function App() {
 
   const loadData = useCallback(async () => {
     setIsRefreshing(true)
+    setSupabaseError(null)
     try {
       const [vRes, lRes] = await Promise.all([
         api.getVehicles(),
         api.getLoans()
       ])
-      setVehicles(vRes.data || [])
-      setLoans(lRes.data || [])
-      setDataSource(vRes.source || 'local')
-      setIsTableMissing(Boolean(vRes.isTableMissing))
+
+      if (vRes.error) {
+        setSupabaseError(vRes.error)
+      } else {
+        setVehicles(vRes.data || [])
+      }
+
+      if (lRes.error && !vRes.error) {
+        setSupabaseError(lRes.error)
+      } else if (!vRes.error) {
+        setLoans(lRes.data || [])
+      }
     } catch (err) {
       console.error('Error loadData:', err)
-      showToast('Gagal memuat data terbaru.', 'error')
+      setSupabaseError(err.message || 'Gagal terhubung ke database Supabase.')
     } finally {
       setIsRefreshing(false)
     }
@@ -139,7 +147,7 @@ export default function App() {
     }
   }
 
-  const { isConfigured } = getSupabaseConfig()
+  const isConnected = !supabaseError
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50 text-zinc-900 selection:bg-zinc-900 selection:text-white">
@@ -163,8 +171,8 @@ export default function App() {
 
       {/* Header / Navbar */}
       <Navbar
-        supabaseStatus={isConfigured && dataSource === 'supabase'}
-        isTableMissing={isTableMissing}
+        isConnected={isConnected}
+        errorMessage={supabaseError}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenLoanModal={() => handleOpenBorrowModal(null)}
         onRefresh={loadData}
@@ -174,27 +182,40 @@ export default function App() {
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
         
-        {/* Banner Table Missing Notification */}
-        {isTableMissing && (
-          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-xs">
+        {/* Banner Supabase Error or Permission Issue */}
+        {supabaseError && (
+          <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-xs">
             <div className="flex items-start gap-2.5">
-              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
               <div>
-                <span className="font-bold">Kunci Supabase Valid, namun Tabel Database Belum Dibuat:</span>
-                <p className="text-amber-800 mt-0.5">
-                  Tabel <code>vehicles</code> belum ada di Supabase Anda. Salin file <code>supabase-schema.sql</code> dan klik <strong>Run</strong> di SQL Editor Supabase agar database langsung aktif secara live!
+                <span className="font-bold">Database Supabase Mengembalikan Pesan:</span>
+                <p className="font-mono text-[11px] text-rose-800 mt-0.5 bg-rose-100/60 px-2 py-1 rounded inline-block">
+                  {supabaseError}
+                </p>
+                <p className="text-rose-700 mt-1">
+                  Jika pesan berupa <em>"permission denied"</em> atau <em>"table not found"</em>, jalankan ulang script <strong>supabase-schema.sql</strong> di SQL Editor Supabase untuk memberikan hak akses publik ke tabel.
                 </p>
               </div>
             </div>
-            <a
-              href="https://supabase.com/dashboard/project/dvezfsggwmxbdglfudep/sql/new"
-              target="_blank"
-              rel="noreferrer"
-              className="px-3 py-1.5 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 transition-colors shrink-0 inline-flex items-center gap-1.5 shadow-xs"
-            >
-              <span>Buka SQL Editor Supabase</span>
-              <ExternalLink className="h-3 w-3" />
-            </a>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={loadData}
+                disabled={isRefreshing}
+                className="px-3 py-1.5 rounded-lg border border-rose-300 bg-white hover:bg-rose-50 text-rose-800 font-semibold inline-flex items-center gap-1 cursor-pointer"
+              >
+                <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span>Coba Lagi</span>
+              </button>
+              <a
+                href="https://supabase.com/dashboard/project/dvezfsggwmxbdglfudep/sql/new"
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1.5 rounded-lg bg-rose-600 text-white font-semibold hover:bg-rose-700 transition-colors inline-flex items-center gap-1.5 shadow-xs"
+              >
+                <span>Buka SQL Editor</span>
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
           </div>
         )}
 
@@ -257,7 +278,7 @@ export default function App() {
       {/* Footer */}
       <footer className="border-t border-zinc-200/80 bg-white py-6 text-center text-xs text-zinc-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>© {new Date().getFullYear()} PinjamMobil. Arsitektur Modular & Desain Sederhana.</p>
+          <p>© {new Date().getFullYear()} PinjamMobil. Murni Database Supabase.</p>
           <div className="flex items-center gap-4 text-zinc-500">
             <button onClick={() => setIsSettingsOpen(true)} className="hover:text-zinc-900 cursor-pointer">
               Konfigurasi Supabase
