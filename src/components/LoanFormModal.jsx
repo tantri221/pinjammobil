@@ -141,7 +141,7 @@ export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVeh
             ) : (
               availableVehicles.map(v => (
                 <option key={v.id} value={v.id}>
-                  {v.name} ({v.license_plate}) • Level BBM: {v.fuel_level ?? 100}%
+                  {v.name} ({v.license_plate})
                 </option>
               ))
             )}
