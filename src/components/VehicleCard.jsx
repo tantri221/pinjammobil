@@ -1,5 +1,5 @@
 import React from 'react'
-import { Fuel, Gauge, Users, Key, Edit, Trash2 } from 'lucide-react'
+import { Fuel, Users, Key, Edit, Trash2 } from 'lucide-react'
 
 export function VehicleCard({ vehicle, isAdmin = false, onBorrow, onEdit, onDelete }) {
   const statusConfig = {
@@ -81,15 +81,9 @@ export function VehicleCard({ vehicle, isAdmin = false, onBorrow, onEdit, onDele
 
         {/* Specs & Fuel Info */}
         <div className="py-3 space-y-2.5 text-xs text-slate-600">
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex items-center gap-1.5 text-slate-600">
-              <Users className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-              <span>{vehicle.capacity || 7} Kursi</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-slate-600">
-              <Gauge className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-              <span className="font-mono font-medium">{(vehicle.mileage || 0).toLocaleString()} KM</span>
-            </div>
+          <div className="flex items-center gap-1.5 text-slate-600">
+            <Users className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <span>Kapasitas: {vehicle.capacity || 7} Kursi</span>
           </div>
 
           {/* Level BBM Bar */}
