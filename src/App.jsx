@@ -51,6 +51,8 @@ export default function App() {
   }
 
   const isAdmin = currentUser?.role === 'admin'
+  const canManageVehicles = ['admin', 'ga', 'adh'].includes(currentUser?.role)
+  const canManageLoans = ['admin', 'ga', 'adh', 'spv'].includes(currentUser?.role)
 
   const loadData = useCallback(async () => {
     if (!currentUser) return
@@ -94,7 +96,14 @@ export default function App() {
   const handleLoginSuccess = (user) => {
     setCurrentUser(user)
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user))
-    showToast(`Selamat datang, ${user.name}! (${user.role === 'admin' ? 'Administrator IT' : 'Staff'})`)
+    const roleLabels = {
+      admin: 'Administrator IT',
+      ga: 'General Affairs (GA)',
+      spv: 'Supervisor (SPV)',
+      adh: 'Administration Head (ADH)',
+      staff: 'Staff'
+    }
+    showToast(`Selamat datang, ${user.name}! (${roleLabels[user.role] || 'Staff'})`)
   }
 
   const handleLogout = () => {
@@ -153,8 +162,8 @@ export default function App() {
 
   // --- Vehicle CRUD Handlers ---
   const handleOpenAddVehicle = () => {
-    if (!isAdmin) {
-      showToast('Hanya Administrator yang dapat menambah armada.', 'error')
+    if (!canManageVehicles) {
+      showToast('Hanya Administrator atau General Affairs (GA) yang dapat menambah armada.', 'error')
       return
     }
     setEditingVehicle(null)
@@ -162,8 +171,8 @@ export default function App() {
   }
 
   const handleOpenEditVehicle = (vehicle) => {
-    if (!isAdmin) {
-      showToast('Hanya Administrator yang dapat mengubah armada.', 'error')
+    if (!canManageVehicles) {
+      showToast('Hanya Administrator atau General Affairs (GA) yang dapat mengubah armada.', 'error')
       return
     }
     setEditingVehicle(vehicle)
@@ -191,7 +200,10 @@ export default function App() {
   }
 
   const handleDeleteVehicle = async (vehicle) => {
-    if (!isAdmin) return
+    if (!canManageVehicles) {
+      showToast('Hanya Administrator atau General Affairs (GA) yang dapat menghapus armada.', 'error')
+      return
+    }
     if (!window.confirm(`Yakin ingin menghapus unit "${vehicle.name} (${vehicle.license_plate})"?`)) return
     const res = await api.deleteVehicle(vehicle.id)
     if (res.success) {
@@ -367,7 +379,7 @@ export default function App() {
 
               <VehicleGrid
                 vehicles={vehicles}
-                isAdmin={isAdmin}
+                isAdmin={canManageVehicles}
                 onBorrow={handleOpenBorrowModal}
                 onAddVehicle={handleOpenAddVehicle}
                 onEditVehicle={handleOpenEditVehicle}
@@ -380,7 +392,7 @@ export default function App() {
           {activeTab === 'loans' && (
             <LoanHistoryTable
               loans={loans}
-              isAdmin={isAdmin}
+              isAdmin={canManageLoans}
               currentUser={currentUser}
               onReturnVehicle={handleReturnVehicle}
               onDeleteLoan={handleDeleteLoan}

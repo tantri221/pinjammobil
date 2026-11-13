@@ -253,13 +253,42 @@ export function UserManagementModal({
                             </td>
 
                             <td className="py-3 px-3.5">
-                              <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                                isAdmin 
-                                  ? 'bg-amber-50 text-amber-800 border-amber-300' 
-                                  : 'bg-sky-50 text-sky-700 border-sky-300'
-                              }`}>
-                                {isAdmin ? '👑 Admin' : '👤 Staff'}
-                              </span>
+                              {(() => {
+                                const r = u.role?.toLowerCase()
+                                if (r === 'admin') {
+                                  return (
+                                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-amber-50 text-amber-800 border-amber-300">
+                                      👑 Admin IT
+                                    </span>
+                                  )
+                                }
+                                if (r === 'ga') {
+                                  return (
+                                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-indigo-50 text-indigo-800 border-indigo-300">
+                                      🛠️ GA
+                                    </span>
+                                  )
+                                }
+                                if (r === 'spv') {
+                                  return (
+                                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-teal-50 text-teal-800 border-teal-300">
+                                      👔 SPV
+                                    </span>
+                                  )
+                                }
+                                if (r === 'adh') {
+                                  return (
+                                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-purple-50 text-purple-800 border-purple-300">
+                                      🏛️ ADH
+                                    </span>
+                                  )
+                                }
+                                return (
+                                  <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-sky-50 text-sky-700 border-sky-300">
+                                    👤 Staff
+                                  </span>
+                                )
+                              })()}
                             </td>
 
                             <td className="py-3 px-3.5 text-right">
@@ -396,6 +425,9 @@ export function UserManagementModal({
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white focus:border-sky-500 outline-none font-bold"
               >
                 <option value="staff">👤 Staff / Peminjam</option>
+                <option value="ga">🛠️ General Affairs (GA)</option>
+                <option value="spv">👔 Supervisor (SPV)</option>
+                <option value="adh">🏛️ Administration Head (ADH)</option>
                 <option value="admin">👑 Administrator IT</option>
               </select>
             </div>
@@ -536,6 +568,9 @@ export function UserManagementModal({
               className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white focus:border-sky-500 outline-none font-bold"
             >
               <option value="staff">👤 Staff / Peminjam</option>
+              <option value="ga">🛠️ General Affairs (GA)</option>
+              <option value="spv">👔 Supervisor (SPV)</option>
+              <option value="adh">🏛️ Administration Head (ADH)</option>
               <option value="admin">👑 Administrator IT</option>
             </select>
           </div>

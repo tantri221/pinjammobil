@@ -341,6 +341,12 @@ export const api = {
         if (error.code === '23505') {
           return { success: false, error: 'Username atau nomor HP / email sudah digunakan oleh user lain.' }
         }
+        if (error.code === '23514') {
+          return { 
+            success: false, 
+            error: 'Database Supabase memerlukan pembaruan batasan role. Silakan jalankan query di Supabase SQL Editor: ALTER TABLE public.app_users DROP CONSTRAINT IF EXISTS app_users_role_check; ALTER TABLE public.app_users ADD CONSTRAINT app_users_role_check CHECK (role IN (\'admin\', \'staff\', \'ga\', \'spv\', \'adh\'));' 
+          }
+        }
         throw error
       }
 
@@ -422,6 +428,12 @@ export const api = {
       if (error) {
         if (error.code === '23505') {
           return { success: false, error: 'Username atau nomor HP / email sudah digunakan oleh user lain.' }
+        }
+        if (error.code === '23514') {
+          return { 
+            success: false, 
+            error: 'Database Supabase memerlukan pembaruan batasan role. Silakan jalankan query di Supabase SQL Editor: ALTER TABLE public.app_users DROP CONSTRAINT IF EXISTS app_users_role_check; ALTER TABLE public.app_users ADD CONSTRAINT app_users_role_check CHECK (role IN (\'admin\', \'staff\', \'ga\', \'spv\', \'adh\'));' 
+          }
         }
         throw error
       }

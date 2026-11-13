@@ -85,8 +85,8 @@ export function Navbar({
               {/* User badge */}
               <div className="flex items-center gap-1.5 py-1 px-2.5 rounded-lg bg-zinc-100 border border-zinc-200 text-xs">
                 <span className="font-semibold text-zinc-900 max-w-[110px] truncate">{currentUser.name}</span>
-                <Badge variant={isAdmin ? 'default' : 'secondary'} className="text-[9px] px-1.5 py-0">
-                  {isAdmin ? 'Admin' : 'Staff'}
+                <Badge variant={isAdmin ? 'default' : 'secondary'} className="text-[9px] px-1.5 py-0 uppercase">
+                  {currentUser.role === 'admin' ? 'Admin IT' : (currentUser.role || 'Staff')}
                 </Badge>
               </div>
 

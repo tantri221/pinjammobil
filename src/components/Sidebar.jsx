@@ -26,6 +26,24 @@ export function Sidebar({
   const isAdmin = currentUser?.role === 'admin'
   const initial = currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'
 
+  const userRole = currentUser?.role?.toLowerCase()
+  let roleTitle = 'STAFF / PEMINJAM'
+  let roleBadgeClass = 'bg-sky-500/20 text-sky-300 border-sky-400/30'
+
+  if (userRole === 'admin') {
+    roleTitle = 'ADMINISTRATOR IT'
+    roleBadgeClass = 'bg-amber-500/20 text-amber-300 border-amber-400/30'
+  } else if (userRole === 'ga') {
+    roleTitle = 'GENERAL AFFAIRS (GA)'
+    roleBadgeClass = 'bg-indigo-500/20 text-indigo-300 border-indigo-400/30'
+  } else if (userRole === 'spv') {
+    roleTitle = 'SUPERVISOR (SPV)'
+    roleBadgeClass = 'bg-teal-500/20 text-teal-300 border-teal-400/30'
+  } else if (userRole === 'adh') {
+    roleTitle = 'ADMIN HEAD (ADH)'
+    roleBadgeClass = 'bg-purple-500/20 text-purple-300 border-purple-400/30'
+  }
+
   return (
     <aside className="w-full lg:w-72 shrink-0 bg-slate-900 text-slate-100 rounded-2xl shadow-xl border border-slate-800 overflow-hidden flex flex-col justify-between">
       <div>
@@ -55,12 +73,8 @@ export function Sidebar({
               <div className="font-bold text-sm text-white truncate">{currentUser?.name || 'Pengguna'}</div>
               <div className="text-xs text-slate-400 truncate">Divisi {currentUser?.division || 'Operasional'}</div>
               <div className="mt-1 flex items-center gap-1.5">
-                <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                  isAdmin 
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-400/30' 
-                    : 'bg-sky-500/20 text-sky-300 border border-sky-400/30'
-                }`}>
-                  {isAdmin ? 'ADMINISTRATOR IT' : 'STAFF / PEMINJAM'}
+                <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${roleBadgeClass}`}>
+                  {roleTitle}
                 </span>
               </div>
             </div>

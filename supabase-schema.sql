@@ -41,13 +41,17 @@ CREATE TABLE IF NOT EXISTS public.app_users (
     phone VARCHAR(30),
     password VARCHAR(100) NOT NULL,
     name VARCHAR(100) NOT NULL,
-    role VARCHAR(20) DEFAULT 'staff' CHECK (role IN ('admin', 'staff')),
+    role VARCHAR(20) DEFAULT 'staff' CHECK (role IN ('admin', 'staff', 'ga', 'spv', 'adh')),
     division VARCHAR(50) DEFAULT 'Operasional',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Opsional: Tambah kolom phone ke app_users jika tabel sudah dibuat sebelumnya
 ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS phone VARCHAR(30);
+
+-- Perbarui Batasan Role untuk Mendukung GA, SPV, dan ADH
+ALTER TABLE public.app_users DROP CONSTRAINT IF EXISTS app_users_role_check;
+ALTER TABLE public.app_users ADD CONSTRAINT app_users_role_check CHECK (role IN ('admin', 'staff', 'ga', 'spv', 'adh'));
 
 -- 4. Buat Tabel Pengaturan Aplikasi (app_settings)
 CREATE TABLE IF NOT EXISTS public.app_settings (
