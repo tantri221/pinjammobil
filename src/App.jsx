@@ -6,21 +6,15 @@ import { LoanHistoryTable } from './components/LoanHistoryTable'
 import { LoanFormModal } from './components/LoanFormModal'
 import { VehicleFormModal } from './components/VehicleFormModal'
 import { SupabaseSettingsModal } from './components/SupabaseSettingsModal'
-import { AuthModal } from './components/AuthModal'
 import { UserManagementModal } from './components/UserManagementModal'
+import { LoginPage } from './components/LoginPage'
 import { api } from './services/api'
-import { getSupabaseConfig } from './lib/supabase'
-import { Car, Clock, CheckCircle2, AlertCircle, AlertTriangle, ExternalLink, RefreshCw, Shield, Users } from 'lucide-react'
+import { Car, Clock, CheckCircle2, AlertCircle, AlertTriangle, ExternalLink, RefreshCw } from 'lucide-react'
 
 const AUTH_USER_KEY = 'pinjammobil_auth_user'
 
 export default function App() {
-  const [vehicles, setVehicles] = useState([])
-  const [loans, setLoans] = useState([])
-  const [supabaseError, setSupabaseError] = useState(null)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  
-  // Auth & Session
+  // Session User
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem(AUTH_USER_KEY)
@@ -29,10 +23,13 @@ export default function App() {
       return null
     }
   })
-  const [isRegistrationAllowed, setIsRegistrationAllowed] = useState(false)
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
-  const [isUserManagementOpen, setIsUserManagementOpen] = useState(false)
 
+  const [vehicles, setVehicles] = useState([])
+  const [loans, setLoans] = useState([])
+  const [supabaseError, setSupabaseError] = useState(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isRegistrationAllowed, setIsRegistrationAllowed] = useState(false)
+  
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState('vehicles') // 'vehicles' | 'loans'
 
@@ -44,6 +41,7 @@ export default function App() {
   const [editingVehicle, setEditingVehicle] = useState(null)
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isUserManagementOpen, setIsUserManagementOpen] = useState(false)
 
   // Toast
   const [toast, setToast] = useState(null)
@@ -56,6 +54,7 @@ export default function App() {
   const isAdmin = currentUser?.role === 'admin'
 
   const loadData = useCallback(async () => {
+    if (!currentUser) return // Jangan muat data jika belum login
     setIsRefreshing(true)
     setSupabaseError(null)
     try {
@@ -84,23 +83,25 @@ export default function App() {
     } finally {
       setIsRefreshing(false)
     }
-  }, [])
+  }, [currentUser])
 
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    if (currentUser) {
+      loadData()
+    }
+  }, [currentUser, loadData])
 
   // --- Auth Handlers ---
   const handleLoginSuccess = (user) => {
     setCurrentUser(user)
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user))
-    showToast(`Selamat datang kembali, ${user.name}! (${user.role === 'admin' ? 'Administrator' : 'Staff'})`)
+    showToast(`Selamat datang, ${user.name}! (${user.role === 'admin' ? 'Administrator IT' : 'Staff'})`)
   }
 
   const handleLogout = () => {
     setCurrentUser(null)
     localStorage.removeItem(AUTH_USER_KEY)
-    showToast('Anda telah keluar dari akun.')
+    showToast('Anda telah keluar dari sistem.')
   }
 
   const handleToggleRegistration = async (newStatus) => {
@@ -117,7 +118,6 @@ export default function App() {
   const handleOpenAddVehicle = () => {
     if (!isAdmin) {
       showToast('Hanya Administrator yang memiliki akses menambah armada.', 'error')
-      setIsAuthModalOpen(true)
       return
     }
     setEditingVehicle(null)
@@ -127,7 +127,6 @@ export default function App() {
   const handleOpenEditVehicle = (vehicle) => {
     if (!isAdmin) {
       showToast('Hanya Administrator yang memiliki akses mengubah armada.', 'error')
-      setIsAuthModalOpen(true)
       return
     }
     setEditingVehicle(vehicle)
@@ -171,11 +170,6 @@ export default function App() {
 
   // --- Loan CRUD Handlers ---
   const handleOpenBorrowModal = (vehicle = null) => {
-    if (!currentUser) {
-      showToast('Silakan masuk (login) terlebih dahulu untuk meminjam mobil.', 'error')
-      setIsAuthModalOpen(true)
-      return
-    }
     setSelectedVehicle(vehicle)
     setIsLoanModalOpen(true)
   }
@@ -215,6 +209,15 @@ export default function App() {
     }
   }
 
+  // JIKA USER BELUM LOGIN: TAMPILKAN HALAMAN LOGIN (WAJIB LOGIN)
+  if (!currentUser) {
+    return (
+      <LoginPage 
+        onLoginSuccess={handleLoginSuccess}
+      />
+    )
+  }
+
   const isConnected = !supabaseError
 
   return (
@@ -241,7 +244,7 @@ export default function App() {
       <Navbar
         isConnected={isConnected}
         currentUser={currentUser}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onOpenAuth={() => {}}
         onLogout={handleLogout}
         onOpenUserManagement={() => setIsUserManagementOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -263,9 +266,6 @@ export default function App() {
                 <p className="font-mono text-[11px] text-rose-800 mt-0.5 bg-rose-100/60 px-2 py-1 rounded inline-block">
                   {supabaseError}
                 </p>
-                <p className="text-rose-700 mt-1">
-                  Jika tabel otentikasi (<code>app_users</code> & <code>app_settings</code>) belum dibuat di Supabase, jalankan file <strong>supabase-schema.sql</strong> di SQL Editor Supabase.
-                </p>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -277,15 +277,6 @@ export default function App() {
                 <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
                 <span>Coba Lagi</span>
               </button>
-              <a
-                href="https://supabase.com/dashboard/project/dvezfsggwmxbdglfudep/sql/new"
-                target="_blank"
-                rel="noreferrer"
-                className="px-3 py-1.5 rounded-lg bg-rose-600 text-white font-semibold hover:bg-rose-700 transition-colors inline-flex items-center gap-1.5 shadow-xs"
-              >
-                <span>Buka SQL Editor</span>
-                <ExternalLink className="h-3 w-3" />
-              </a>
             </div>
           </div>
         )}
@@ -357,17 +348,13 @@ export default function App() {
             {isAdmin && (
               <>
                 <button onClick={() => setIsUserManagementOpen(true)} className="hover:text-zinc-900 cursor-pointer">
-                  Kelola Pengguna
+                  Kelola Pengguna & Registrasi
                 </button>
                 <span>•</span>
               </>
             )}
             <button onClick={() => setIsSettingsOpen(true)} className="hover:text-zinc-900 cursor-pointer">
               Konfigurasi Supabase
-            </button>
-            <span>•</span>
-            <button onClick={() => window.open('legacy/index.html', '_blank')} className="hover:text-zinc-900 cursor-pointer">
-              Versi Monolitik Lama
             </button>
           </div>
         </div>
@@ -394,15 +381,6 @@ export default function App() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         onConfigSaved={loadData}
-      />
-
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        isRegistrationAllowed={isRegistrationAllowed}
-        onLoginSuccess={handleLoginSuccess}
-        onLogin={(id, pass) => api.login(id, pass)}
-        onRegister={(data) => api.register(data)}
       />
 
       <UserManagementModal
