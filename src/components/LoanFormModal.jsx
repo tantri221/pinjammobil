@@ -67,6 +67,10 @@ export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVeh
       alert('Pilih unit kendaraan yang tersedia.')
       return
     }
+    if (!formData.notes?.trim()) {
+      alert('Catatan tambahan wajib diisi.')
+      return
+    }
 
     setIsSubmitting(true)
     try {
@@ -312,10 +316,11 @@ export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVeh
         {/* Catatan Tambahan */}
         <div>
           <label className="block text-xs font-semibold text-zinc-700 mb-1">
-            Catatan Tambahan (Opsional)
+            Catatan Tambahan <span className="text-red-500">*</span>
           </label>
           <Input
-            placeholder="Kondisi fisik, rute khusus, atau kebutuhan supir"
+            required
+            placeholder="Wajib diisi: Kondisi fisik, rute khusus, atau kebutuhan lainnya"
             value={formData.notes}
             onChange={e => setFormData({ ...formData, notes: e.target.value })}
           />
