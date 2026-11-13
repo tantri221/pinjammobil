@@ -15,7 +15,7 @@ export function LoginPage({ onLoginSuccess }) {
   const [regData, setRegData] = useState({
     name: '',
     username: '',
-    email: '',
+    phone: '',
     password: '',
     division: 'Sales'
   })
@@ -133,13 +133,13 @@ export function LoginPage({ onLoginSuccess }) {
             <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Username atau Email
+                  Username, No. HP, atau Email
                 </label>
                 <input
                   type="text"
                   required
                   autoFocus
-                  placeholder="Masukkan username atau email Anda"
+                  placeholder="Masukkan username, no HP, atau email Anda"
                   value={identifier}
                   onChange={e => setIdentifier(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition"
@@ -260,14 +260,14 @@ export function LoginPage({ onLoginSuccess }) {
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Email Kantor <span className="text-red-500">*</span>
+                      Nomor HP / WhatsApp <span className="text-red-500">*</span>
                     </label>
                     <input
-                      type="email"
+                      type="tel"
                       required
-                      placeholder="ahmad@kantor.com"
-                      value={regData.email}
-                      onChange={e => setRegData({ ...regData, email: e.target.value })}
+                      placeholder="Contoh: 081234567890"
+                      value={regData.phone}
+                      onChange={e => setRegData({ ...regData, phone: e.target.value })}
                       className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:border-sky-500 outline-none"
                     />
                   </div>

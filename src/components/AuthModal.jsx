@@ -21,7 +21,7 @@ export function AuthModal({
   const [regData, setRegData] = useState({
     name: '',
     username: '',
-    email: '',
+    phone: '',
     password: '',
     division: 'Sales'
   })
@@ -122,11 +122,11 @@ export function AuthModal({
           <form onSubmit={handleLoginSubmit} className="space-y-3.5">
             <div>
               <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                Username atau Email
+                Username, No. HP, atau Email
               </label>
               <Input
                 required
-                placeholder="Masukkan username atau email"
+                placeholder="Masukkan username, no HP, atau email"
                 value={loginIdentifier}
                 onChange={e => setLoginIdentifier(e.target.value)}
               />
@@ -236,14 +236,14 @@ export function AuthModal({
 
                 <div>
                   <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                    Email Kantor <span className="text-red-500">*</span>
+                    Nomor HP / WhatsApp <span className="text-red-500">*</span>
                   </label>
                   <Input
-                    type="email"
+                    type="tel"
                     required
-                    placeholder="ahmad@kantor.com"
-                    value={regData.email}
-                    onChange={e => setRegData({ ...regData, email: e.target.value })}
+                    placeholder="Contoh: 081234567890"
+                    value={regData.phone}
+                    onChange={e => setRegData({ ...regData, phone: e.target.value })}
                   />
                 </div>
 

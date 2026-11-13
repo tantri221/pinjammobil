@@ -38,12 +38,16 @@ CREATE TABLE IF NOT EXISTS public.app_users (
     id BIGSERIAL PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(100) NOT NULL UNIQUE,
+    phone VARCHAR(30),
     password VARCHAR(100) NOT NULL,
     name VARCHAR(100) NOT NULL,
     role VARCHAR(20) DEFAULT 'staff' CHECK (role IN ('admin', 'staff')),
     division VARCHAR(50) DEFAULT 'Operasional',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Opsional: Tambah kolom phone ke app_users jika tabel sudah dibuat sebelumnya
+ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS phone VARCHAR(30);
 
 -- 4. Buat Tabel Pengaturan Aplikasi (app_settings)
 CREATE TABLE IF NOT EXISTS public.app_settings (

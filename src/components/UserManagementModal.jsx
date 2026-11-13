@@ -22,7 +22,7 @@ export function UserManagementModal({
   const initialAddFormData = {
     name: '',
     username: '',
-    email: '',
+    phone: '',
     division: 'Sales',
     role: 'staff',
     password: 'password123'
@@ -36,7 +36,7 @@ export function UserManagementModal({
   const [editFormData, setEditFormData] = useState({
     name: '',
     username: '',
-    email: '',
+    phone: '',
     division: 'Sales',
     role: 'staff',
     password: ''
@@ -96,10 +96,11 @@ export function UserManagementModal({
 
   const handleOpenEdit = (u) => {
     setEditingUser(u)
+    const userPhone = u.phone || (u.email && u.email.endsWith('@pinjammobil.local') ? u.email.replace('@pinjammobil.local', '') : (u.displayContact || u.email || ''))
     setEditFormData({
       name: u.name || '',
       username: u.username || '',
-      email: u.email || '',
+      phone: userPhone,
       division: u.division || 'Sales',
       role: u.role || 'staff',
       password: ''
@@ -206,7 +207,7 @@ export function UserManagementModal({
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold text-[10px] uppercase">
                     <tr>
                       <th className="py-3 px-3.5">Nama & Username</th>
-                      <th className="py-3 px-3.5">Email & Divisi</th>
+                      <th className="py-3 px-3.5">Kontak & Divisi</th>
                       <th className="py-3 px-3.5">Wewenang Role</th>
                       <th className="py-3 px-3.5 text-right">Aksi</th>
                     </tr>
@@ -237,7 +238,17 @@ export function UserManagementModal({
                             </td>
 
                             <td className="py-3 px-3.5">
-                              <div className="font-medium text-slate-800">{u.email}</div>
+                              <div className="font-medium text-slate-800 flex items-center gap-1.5">
+                                {u.phone ? (
+                                  <span className="font-mono text-sky-800">📱 {u.phone}</span>
+                                ) : u.displayContact ? (
+                                  <span className="font-mono text-slate-800">
+                                    {u.displayContact.startsWith('08') || u.displayContact.startsWith('+') ? `📱 ${u.displayContact}` : `✉️ ${u.displayContact}`}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-600">{u.email}</span>
+                                )}
+                              </div>
                               <div className="text-[11px] text-slate-400">Divisi {u.division}</div>
                             </td>
 
@@ -363,13 +374,14 @@ export function UserManagementModal({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Email Kantor <span className="text-red-500">*</span>
+                Nomor HP / WhatsApp <span className="text-red-500">*</span>
               </label>
               <input
-                type="email"
+                type="tel"
                 required
-                value={editFormData.email}
-                onChange={e => setEditFormData({ ...editFormData, email: e.target.value })}
+                placeholder="Contoh: 081234567890"
+                value={editFormData.phone}
+                onChange={e => setEditFormData({ ...editFormData, phone: e.target.value })}
                 className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:border-sky-500 outline-none"
               />
             </div>
@@ -502,14 +514,14 @@ export function UserManagementModal({
 
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
-              Email Kantor <span className="text-red-500">*</span>
+              Nomor HP / WhatsApp <span className="text-red-500">*</span>
             </label>
             <input
-              type="email"
+              type="tel"
               required
-              placeholder="budi@perusahaan.co.id"
-              value={addFormData.email}
-              onChange={e => setAddFormData({ ...addFormData, email: e.target.value })}
+              placeholder="Contoh: 081234567890"
+              value={addFormData.phone}
+              onChange={e => setAddFormData({ ...addFormData, phone: e.target.value })}
               className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:border-sky-500 outline-none"
             />
           </div>

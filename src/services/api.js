@@ -251,14 +251,23 @@ export const api = {
     if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
 
     try {
+      const cleanId = identifier.trim().toLowerCase()
+      const digitsOnly = cleanId.replace(/[^0-9]/g, '')
+      const phoneEmail = digitsOnly ? `${digitsOnly}@pinjammobil.local` : ''
+
+      let orFilter = `username.eq.${cleanId},email.eq.${cleanId}`
+      if (phoneEmail) {
+        orFilter += `,email.eq.${phoneEmail}`
+      }
+
       const { data, error } = await supabase
         .from('app_users')
         .select('id, username, email, name, role, division, password')
-        .or(`username.eq.${identifier},email.eq.${identifier}`)
+        .or(orFilter)
         .single()
 
       if (error || !data) {
-        return { success: false, error: 'Username atau email tidak ditemukan.' }
+        return { success: false, error: 'Username, nomor HP, atau email tidak ditemukan.' }
       }
 
       if (data.password !== password) {
@@ -266,7 +275,15 @@ export const api = {
       }
 
       const { password: _, ...userSession } = data
-      return { success: true, user: userSession }
+      const isPhoneEmail = userSession.email && userSession.email.endsWith('@pinjammobil.local')
+      const phone = isPhoneEmail ? userSession.email.replace('@pinjammobil.local', '') : ''
+      const userObj = {
+        ...userSession,
+        phone,
+        displayContact: isPhoneEmail ? phone : userSession.email
+      }
+
+      return { success: true, user: userObj }
     } catch (err) {
       console.error('Login error:', err)
       return { success: false, error: err.message || 'Gagal login.' }
@@ -300,10 +317,15 @@ export const api = {
     if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
 
     try {
+      const cleanPhone = userData.phone ? userData.phone.trim().replace(/[^0-9+]/g, '') : ''
+      const emailValue = userData.email?.trim() 
+        ? userData.email.trim().toLowerCase()
+        : (cleanPhone ? `${cleanPhone}@pinjammobil.local` : `${userData.username.trim().toLowerCase()}@pinjammobil.local`)
+
       const payload = {
         name: userData.name.trim(),
         username: userData.username.trim().toLowerCase(),
-        email: userData.email.trim().toLowerCase(),
+        email: emailValue,
         password: userData.password ? userData.password.trim() : 'password123',
         division: userData.division || 'Operasional',
         role: userData.role || 'staff'
@@ -317,12 +339,20 @@ export const api = {
 
       if (error) {
         if (error.code === '23505') {
-          return { success: false, error: 'Username atau email sudah digunakan oleh user lain.' }
+          return { success: false, error: 'Username atau nomor HP / email sudah digunakan oleh user lain.' }
         }
         throw error
       }
 
-      return { success: true, user: data }
+      const isPhoneEmail = data.email && data.email.endsWith('@pinjammobil.local')
+      const phone = isPhoneEmail ? data.email.replace('@pinjammobil.local', '') : ''
+      const userObj = {
+        ...data,
+        phone,
+        displayContact: isPhoneEmail ? phone : data.email
+      }
+
+      return { success: true, user: userObj }
     } catch (err) {
       console.error('Create user error:', err)
       return { success: false, error: err.message || 'Gagal menambahkan akun pengguna.' }
@@ -340,7 +370,18 @@ export const api = {
         .order('id', { ascending: true })
 
       if (error) throw error
-      return { data: data || [], error: null }
+
+      const formatted = (data || []).map(u => {
+        const isPhoneEmail = u.email && u.email.endsWith('@pinjammobil.local')
+        const phone = isPhoneEmail ? u.email.replace('@pinjammobil.local', '') : ''
+        return {
+          ...u,
+          phone,
+          displayContact: isPhoneEmail ? phone : u.email
+        }
+      })
+
+      return { data: formatted, error: null }
     } catch (err) {
       return { data: [], error: err.message }
     }
@@ -352,12 +393,20 @@ export const api = {
     if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
 
     try {
+      const cleanPhone = userData.phone ? userData.phone.trim().replace(/[^0-9+]/g, '') : ''
+      const emailValue = userData.email?.trim() 
+        ? userData.email.trim().toLowerCase()
+        : (cleanPhone ? `${cleanPhone}@pinjammobil.local` : undefined)
+
       const payload = {
         name: userData.name,
         username: userData.username.trim().toLowerCase(),
-        email: userData.email.trim().toLowerCase(),
         division: userData.division,
         role: userData.role
+      }
+
+      if (emailValue) {
+        payload.email = emailValue
       }
 
       if (userData.password && userData.password.trim() !== '') {
@@ -372,12 +421,22 @@ export const api = {
 
       if (error) {
         if (error.code === '23505') {
-          return { success: false, error: 'Username atau email sudah digunakan oleh user lain.' }
+          return { success: false, error: 'Username atau nomor HP / email sudah digunakan oleh user lain.' }
         }
         throw error
       }
 
-      return { success: true, user: data[0] }
+      const isPhoneEmail = data[0]?.email && data[0].email.endsWith('@pinjammobil.local')
+      const phone = isPhoneEmail ? data[0].email.replace('@pinjammobil.local', '') : ''
+
+      return { 
+        success: true, 
+        user: { 
+          ...data[0], 
+          phone, 
+          displayContact: isPhoneEmail ? phone : data[0]?.email 
+        } 
+      }
     } catch (err) {
       console.error('Update user error:', err)
       return { success: false, error: err.message || 'Gagal memperbarui data pengguna.' }
