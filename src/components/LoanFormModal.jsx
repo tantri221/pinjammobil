@@ -183,7 +183,7 @@ export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVeh
                 Pengajuan Beli BBM? <span className="text-red-500">*</span>
               </label>
               <p className="text-[11px] text-slate-500">
-                Pilih YA jika operasional memerlukan pengisian/pembelian bahan bakar.
+                Pilih YA jika operasional memerlukan pembelian bahan bakar (dikelola langsung oleh General Affairs / GA).
               </p>
             </div>
 
@@ -239,7 +239,7 @@ export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVeh
                 <option value="400.000">Rp 400.000</option>
               </Select>
               <p className="text-[11px] text-emerald-700">
-                Pengajuan dana BBM ini akan diteruskan ke Supervisor (SPV) dan Admin Head (ADH) untuk disetujui.
+                Pengajuan pembelian BBM ini ditangani langsung oleh General Affairs (GA) dan tidak memerlukan persetujuan SPV/ADH.
               </p>
             </div>
           )}

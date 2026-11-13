@@ -426,8 +426,8 @@ export function ApprovalCenter({
           <div className="flex items-center gap-2">
             <Info className="h-4 w-4 text-sky-600 shrink-0" />
             <span>
-              {activeSubTab === 'ga' && 'Menu Verifikasi GA: Pemeriksaan kesiapan teknis armada, jadwal tidak bentrok, dan kondisi kendaraan.'}
-              {activeSubTab === 'spv' && 'Menu Persetujuan SPV: Persetujuan atasan langsung peminjam untuk urgensi & tugas dinas divisi.'}
+              {activeSubTab === 'ga' && 'Menu Verifikasi GA: Pemeriksaan kesiapan teknis armada, verifikasi kondisi fisik unit & penanganan pembelian BBM.'}
+              {activeSubTab === 'spv' && 'Menu Persetujuan SPV: Persetujuan atasan langsung peminjam untuk urgensi & tugas dinas divisi (tidak memproses pembelian BBM).'}
               {activeSubTab === 'adh' && 'Menu Persetujuan ADH: Otorisasi final izin pemakaian kendaraan operasional kantor oleh Administration Head.'}
               {activeSubTab === 'all' && 'Monitoring menyeluruh status persetujuan dari ketiga tingkatan (SPV, GA, dan ADH).'}
             </span>
@@ -844,12 +844,14 @@ export function ApprovalCenter({
                 <span className="text-slate-500">Destinasi:</span>
                 <span className="font-semibold text-slate-700">{selectedLoan.destination}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Pengajuan Beli BBM:</span>
-                <span className={`font-bold ${selectedLoan.buy_fuel === 'YA' ? 'text-amber-700' : 'text-slate-600'}`}>
-                  {selectedLoan.buy_fuel === 'YA' ? `YA (Rp ${selectedLoan.fuel_amount})` : 'TIDAK'}
-                </span>
-              </div>
+              {actionStage === 'ga' && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Pengajuan Beli BBM (GA):</span>
+                  <span className={`font-bold ${selectedLoan.buy_fuel === 'YA' ? 'text-amber-700' : 'text-slate-600'}`}>
+                    {selectedLoan.buy_fuel === 'YA' ? `YA (Rp ${selectedLoan.fuel_amount})` : 'TIDAK'}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-slate-500">Tahap Otorisasi:</span>
                 <span className="font-bold text-sky-700">
