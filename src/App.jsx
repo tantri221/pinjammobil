@@ -1,0 +1,217 @@
+import React, { useState, useEffect, useCallback } from 'react'
+import { Navbar } from './components/Navbar'
+import { StatsCards } from './components/StatsCards'
+import { VehicleGrid } from './components/VehicleGrid'
+import { LoanHistoryTable } from './components/LoanHistoryTable'
+import { LoanFormModal } from './components/LoanFormModal'
+import { SupabaseSettingsModal } from './components/SupabaseSettingsModal'
+import { api } from './services/api'
+import { getSupabaseConfig } from './lib/supabase'
+import { Car, Clock, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react'
+
+export default function App() {
+  const [vehicles, setVehicles] = useState([])
+  const [loans, setLoans] = useState([])
+  const [dataSource, setDataSource] = useState('local')
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  
+  // Navigation Tabs
+  const [activeTab, setActiveTab] = useState('vehicles') // 'vehicles' | 'loans'
+
+  // Modals
+  const [isLoanModalOpen, setIsLoanModalOpen] = useState(false)
+  const [selectedVehicle, setSelectedVehicle] = useState(null)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+
+  // Toast
+  const [toast, setToast] = useState(null)
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3500)
+  }
+
+  const loadData = useCallback(async () => {
+    setIsRefreshing(true)
+    try {
+      const [vRes, lRes] = await Promise.all([
+        api.getVehicles(),
+        api.getLoans()
+      ])
+      setVehicles(vRes.data || [])
+      setLoans(lRes.data || [])
+      setDataSource(vRes.source || 'local')
+    } catch (err) {
+      console.error('Error loadData:', err)
+      showToast('Gagal memuat data terbaru.', 'error')
+    } finally {
+      setIsRefreshing(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  const handleOpenBorrowModal = (vehicle = null) => {
+    setSelectedVehicle(vehicle)
+    setIsLoanModalOpen(true)
+  }
+
+  const handleSubmitLoan = async (formData) => {
+    const res = await api.createLoan(formData)
+    if (res.success) {
+      showToast('Peminjaman mobil berhasil didaftarkan!')
+      loadData()
+    } else {
+      showToast('Gagal mendaftarkan peminjaman.', 'error')
+    }
+  }
+
+  const handleReturnVehicle = async (loanId, vehicleId, endMileage) => {
+    const res = await api.returnVehicle(loanId, vehicleId, endMileage)
+    if (res.success) {
+      showToast('Unit kendaraan telah dikembalikan dan siap dipinjam kembali.')
+      loadData()
+    } else {
+      showToast('Gagal memproses pengembalian.', 'error')
+    }
+  }
+
+  const { isConfigured } = getSupabaseConfig()
+
+  return (
+    <div className="min-h-screen flex flex-col bg-zinc-50 text-zinc-900 selection:bg-zinc-900 selection:text-white">
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-5 right-5 z-50 animate-in slide-in-from-top-3 duration-200">
+          <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-lg border text-xs font-medium ${
+            toast.type === 'error'
+              ? 'bg-rose-50 border-rose-200 text-rose-800'
+              : 'bg-zinc-900 border-zinc-800 text-white'
+          }`}>
+            {toast.type === 'error' ? (
+              <AlertCircle className="h-4 w-4 text-rose-500 shrink-0" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+            )}
+            <span>{toast.message}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Header / Navbar */}
+      <Navbar
+        supabaseStatus={isConfigured && dataSource === 'supabase'}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenLoanModal={() => handleOpenBorrowModal(null)}
+        onRefresh={loadData}
+        isRefreshing={isRefreshing}
+      />
+
+      {/* Main Container */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+        
+        {/* Banner Informational Demo Mode */}
+        {!isConfigured && (
+          <div className="p-3.5 sm:p-4 rounded-xl bg-amber-50/80 border border-amber-200/80 text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+              <span>
+                <strong>Mode Demo Lokal:</strong> Data tersimpan di browser Anda. Hubungkan ke Supabase kapan saja untuk database cloud online bersama tim.
+              </span>
+            </div>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="text-xs font-semibold text-amber-900 hover:text-black underline shrink-0 cursor-pointer"
+            >
+              Hubungkan Supabase →
+            </button>
+          </div>
+        )}
+
+        {/* Stats Overview */}
+        <StatsCards vehicles={vehicles} loans={loans} />
+
+        {/* Main Navigation Tabs (shadcn style) */}
+        <div className="border-b border-zinc-200 pb-0 flex items-center justify-between">
+          <div className="flex gap-6 -mb-px">
+            <button
+              onClick={() => setActiveTab('vehicles')}
+              className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
+                activeTab === 'vehicles'
+                  ? 'border-zinc-900 text-zinc-900'
+                  : 'border-transparent text-zinc-400 hover:text-zinc-600'
+              }`}
+            >
+              <Car className="h-4 w-4" />
+              <span>Katalog Armada Kendaraan</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('loans')}
+              className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
+                activeTab === 'loans'
+                  ? 'border-zinc-900 text-zinc-900'
+                  : 'border-transparent text-zinc-400 hover:text-zinc-600'
+              }`}
+            >
+              <Clock className="h-4 w-4" />
+              <span>Histori Peminjaman</span>
+              {loans.filter(l => l.status !== 'completed').length > 0 && (
+                <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-zinc-100 text-zinc-700 font-bold border border-zinc-200">
+                  {loans.filter(l => l.status !== 'completed').length} Aktif
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Content Section */}
+        {activeTab === 'vehicles' ? (
+          <VehicleGrid
+            vehicles={vehicles}
+            onBorrow={handleOpenBorrowModal}
+          />
+        ) : (
+          <LoanHistoryTable
+            loans={loans}
+            onReturnVehicle={handleReturnVehicle}
+          />
+        )}
+
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-zinc-200/80 bg-white py-6 text-center text-xs text-zinc-400">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p>© {new Date().getFullYear()} PinjamMobil. Arsitektur Modular & Desain Sederhana.</p>
+          <div className="flex items-center gap-4 text-zinc-500">
+            <button onClick={() => setIsSettingsOpen(true)} className="hover:text-zinc-900 cursor-pointer">
+              Konfigurasi Supabase
+            </button>
+            <span>•</span>
+            <button onClick={() => window.open('legacy/index.html', '_blank')} className="hover:text-zinc-900 cursor-pointer">
+              Versi Monolitik Lama
+            </button>
+          </div>
+        </div>
+      </footer>
+
+      {/* Modals */}
+      <LoanFormModal
+        isOpen={isLoanModalOpen}
+        onClose={() => setIsLoanModalOpen(false)}
+        selectedVehicle={selectedVehicle}
+        availableVehicles={vehicles.filter(v => v.status === 'available')}
+        onSubmit={handleSubmitLoan}
+      />
+
+      <SupabaseSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onConfigSaved={loadData}
+      />
+    </div>
+  )
+}
