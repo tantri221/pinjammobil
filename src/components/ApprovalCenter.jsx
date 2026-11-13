@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { 
   CheckCircle2, 
-  XCircle, 
   Clock, 
   Search, 
   Car, 
@@ -16,7 +15,8 @@ import {
   ShieldCheck,
   UserCheck,
   Building,
-  Wrench
+  Wrench,
+  Layers
 } from 'lucide-react'
 import { Modal } from './ui/Modal'
 import { isTestDriveLoan } from '../lib/utils'
@@ -30,7 +30,6 @@ export function ApprovalCenter({
   // Sub-tabs: 'ga' | 'spv' | 'adh' | 'all'
   const [activeSubTab, setActiveSubTab] = useState('ga')
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'pending' | 'approved' | 'rejected'
 
   // Modal State
   const [selectedLoan, setSelectedLoan] = useState(null)
@@ -55,7 +54,7 @@ export function ApprovalCenter({
     return false
   }
 
-  // Hitung jumlah antrean (pending counts)
+  // Hitung jumlah pengajuan yang SEDANG BERJALAN saja (status === 'pending')
   const stats = useMemo(() => {
     let gaPending = 0
     let spvPending = 0
@@ -63,20 +62,27 @@ export function ApprovalCenter({
     let totalPending = 0
 
     loans.forEach(l => {
+      // Hanya hitung yang sedang berjalan
+      if (l.status !== 'pending') return
+
+      totalPending++
       const app = l.approvals || { ga: {}, spv: {}, adh: {} }
       const isTD = isTestDriveLoan(l, l.vehicles)
+      
       if (app.ga?.status === 'pending') gaPending++
       if (isTD && app.spv?.status === 'pending') spvPending++
       if (app.adh?.status === 'pending') adhPending++
-      if (l.status === 'pending') totalPending++
     })
 
     return { gaPending, spvPending, adhPending, totalPending }
   }, [loans])
 
-  // Filter daftar peminjaman
+  // Filter: HANYA tampilkan pengajuan yang sedang berjalan (status === 'pending')
   const filteredLoans = useMemo(() => {
     return loans.filter(loan => {
+      // 1. KUNCI UTAMA: Jangan tampilkan history (hanya yang berstatus 'pending' / sedang berjalan)
+      if (loan.status !== 'pending') return false
+
       const approvals = loan.approvals || {
         ga: { status: 'pending' },
         spv: { status: 'pending' },
@@ -84,27 +90,17 @@ export function ApprovalCenter({
       }
       const isTD = isTestDriveLoan(loan, loan.vehicles)
 
-      // Tab filter
+      // 2. Tab filter sesuai antrean yang sedang aktif/menunggu
       if (activeSubTab === 'ga') {
-        if (statusFilter === 'pending' && approvals.ga?.status !== 'pending') return false
-        if (statusFilter === 'approved' && approvals.ga?.status !== 'approved') return false
-        if (statusFilter === 'rejected' && approvals.ga?.status !== 'rejected') return false
+        if (approvals.ga?.status !== 'pending') return false
       } else if (activeSubTab === 'spv') {
-        if (!isTD) return false // Non-test drive bypass SPV
-        if (statusFilter === 'pending' && approvals.spv?.status !== 'pending') return false
-        if (statusFilter === 'approved' && approvals.spv?.status !== 'approved') return false
-        if (statusFilter === 'rejected' && approvals.spv?.status !== 'rejected') return false
+        if (!isTD) return false // Non-test drive tidak perlu persetujuan SPV
+        if (approvals.spv?.status !== 'pending') return false
       } else if (activeSubTab === 'adh') {
-        if (statusFilter === 'pending' && approvals.adh?.status !== 'pending') return false
-        if (statusFilter === 'approved' && approvals.adh?.status !== 'approved') return false
-        if (statusFilter === 'rejected' && approvals.adh?.status !== 'rejected') return false
-      } else if (activeSubTab === 'all') {
-        if (statusFilter === 'pending' && loan.status !== 'pending') return false
-        if (statusFilter === 'approved' && loan.status !== 'approved' && loan.status !== 'completed') return false
-        if (statusFilter === 'rejected' && loan.status !== 'rejected') return false
+        if (approvals.adh?.status !== 'pending') return false
       }
 
-      // Search query
+      // 3. Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase()
         const matchBorrower = loan.borrower_name?.toLowerCase().includes(q)
@@ -119,7 +115,7 @@ export function ApprovalCenter({
 
       return true
     })
-  }, [loans, activeSubTab, statusFilter, searchQuery])
+  }, [loans, activeSubTab, searchQuery])
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-'
@@ -217,7 +213,7 @@ export function ApprovalCenter({
   return (
     <div className="space-y-4">
       
-      {/* Top Bar: Navigasi Sub-Tab Bersih & Ringkas */}
+      {/* Top Bar: Navigasi Sub-Tab Antrean yang Sedang Berjalan */}
       <div className="bg-white rounded-xl border border-slate-200 p-2 sm:p-2.5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         
         {/* Pills Navigasi Tab */}
@@ -287,7 +283,15 @@ export function ApprovalCenter({
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            <span>Semua Riwayat</span>
+            <Layers className="h-3.5 w-3.5" />
+            <span>Semua Antrean Aktif</span>
+            {stats.totalPending > 0 && (
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                activeSubTab === 'all' ? 'bg-slate-600 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {stats.totalPending}
+              </span>
+            )}
           </button>
         </div>
 
@@ -298,38 +302,27 @@ export function ApprovalCenter({
         </div>
       </div>
 
-      {/* Search & Status Filter Bar */}
-      <div className="flex flex-col sm:flex-row items-center gap-2">
-        <div className="relative flex-1 w-full">
-          <Search className="h-3.5 w-3.5 absolute left-3 top-2.5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Cari nama peminjam, mobil, plat nomor, tujuan..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:border-sky-500 focus:bg-white bg-slate-50/50 outline-none"
-          />
-        </div>
-
-        <select
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-          className="w-full sm:w-auto px-3 py-1.5 rounded-lg border border-slate-200 text-xs bg-white text-slate-700 font-medium outline-none cursor-pointer"
-        >
-          <option value="all">Semua Status</option>
-          <option value="pending">⏳ Menunggu</option>
-          <option value="approved">✅ Disetujui</option>
-          <option value="rejected">❌ Ditolak</option>
-        </select>
+      {/* Search Bar Sederhana */}
+      <div className="relative w-full">
+        <Search className="h-3.5 w-3.5 absolute left-3 top-2.5 text-slate-400" />
+        <input
+          type="text"
+          placeholder="Cari antrean berjalan (nama peminjam, armada, plat nomor, tujuan)..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:border-sky-500 focus:bg-white bg-slate-50/50 outline-none"
+        />
       </div>
 
-      {/* List Kartu Pengajuan */}
+      {/* List Kartu Pengajuan Yang Sedang Berjalan */}
       {filteredLoans.length === 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400 space-y-2">
-          <CheckCircle2 className="h-8 w-8 mx-auto text-slate-300" />
-          <div className="font-semibold text-slate-700 text-sm">Tidak ada pengajuan pada kategori ini</div>
-          <p className="text-xs text-slate-400">
-            Semua antrean telah diproses atau tidak ada data yang cocok dengan pencarian Anda.
+          <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-500" />
+          <div className="font-semibold text-slate-700 text-sm">
+            Tidak ada pengajuan yang sedang berjalan pada tahap ini
+          </div>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
+            Semua proses verifikasi dan persetujuan telah selesai diproses. Riwayat transaksi yang telah disetujui atau ditolak dapat dilihat di menu <strong>Riwayat Peminjaman</strong>.
           </p>
         </div>
       ) : (
@@ -342,10 +335,6 @@ export function ApprovalCenter({
             }
 
             const isTD = isTestDriveLoan(loan, loan.vehicles)
-            const isCompleted = loan.status === 'completed'
-            const isRejected = loan.status === 'rejected'
-            const isFullyApproved = loan.status === 'approved' || isCompleted
-
             const isGaApproved = approvals.ga?.status === 'approved'
             const isSpvApproved = !isTD || approvals.spv?.status === 'approved' || approvals.spv?.status === 'not_required'
             const isReadyForSpv = isGaApproved
@@ -379,25 +368,11 @@ export function ApprovalCenter({
                     )}
                   </div>
 
-                  {/* Badge Status Keseluruhan */}
+                  {/* Badge Status Sedang Berjalan */}
                   <div>
-                    {isCompleted ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        <CheckCircle2 className="h-3 w-3" /> Selesai
-                      </span>
-                    ) : isRejected ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
-                        <XCircle className="h-3 w-3" /> Ditolak
-                      </span>
-                    ) : isFullyApproved ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
-                        <Check className="h-3 w-3" /> Disetujui Penuh
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                        <Clock className="h-3 w-3" /> Menunggu Otorisasi
-                      </span>
-                    )}
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                      <Clock className="h-3 w-3 text-amber-600" /> Sedang Berjalan
+                    </span>
                   </div>
                 </div>
 
@@ -445,7 +420,7 @@ export function ApprovalCenter({
                   </div>
                 </div>
 
-                {/* Progress Tahapan 3-Step Alur Sederhana */}
+                {/* Progress Tahapan 3-Step Alur Sederhana & Tombol Aksi */}
                 <div className="pt-2 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
                   
                   {/* Step Pills */}
@@ -457,7 +432,7 @@ export function ApprovalCenter({
                     {renderStepPill('3. ADH', approvals.adh)}
                   </div>
 
-                  {/* Tombol Aksi */}
+                  {/* Tombol Aksi Langsung */}
                   <div className="flex items-center gap-2 self-end md:self-auto">
                     
                     {/* Aksi Tab GA */}
@@ -558,7 +533,7 @@ export function ApprovalCenter({
                       )
                     )}
 
-                    {/* Aksi Tab Semua Riwayat */}
+                    {/* Aksi Tab Semua Antrean Aktif */}
                     {activeSubTab === 'all' && (
                       <div className="flex items-center gap-1.5">
                         {canApproveStage('ga') && approvals.ga?.status === 'pending' && (
