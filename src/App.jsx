@@ -113,6 +113,17 @@ export default function App() {
     }
   }
 
+  const handleCreateUser = async (userData) => {
+    const res = await api.createUser(userData)
+    if (res.success) {
+      showToast(`Pengguna "${res.user?.name || userData.name}" (@${res.user?.username || userData.username}) berhasil ditambahkan!`)
+      return { success: true }
+    } else {
+      showToast(res.error || 'Gagal menambahkan akun pengguna.', 'error')
+      return { success: false, error: res.error }
+    }
+  }
+
   const handleUpdateUser = async (userId, userData) => {
     const res = await api.updateUser(userId, userData)
     if (res.success) {
@@ -409,6 +420,7 @@ export default function App() {
         isRegistrationAllowed={isRegistrationAllowed}
         onToggleRegistration={handleToggleRegistration}
         onLoadUsers={() => api.getUsers()}
+        onCreateUser={handleCreateUser}
         onUpdateUser={handleUpdateUser}
         onDeleteUser={handleDeleteUser}
       />

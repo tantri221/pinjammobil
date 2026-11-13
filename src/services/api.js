@@ -273,6 +273,7 @@ export const api = {
     }
   },
 
+  // Registrasi Publik (Terikat status toggle allow_registration)
   async register(userData) {
     const supabase = getSupabase()
     if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
@@ -286,30 +287,45 @@ export const api = {
         }
       }
 
+      return await this.createUser(userData)
+    } catch (err) {
+      console.error('Register error:', err)
+      return { success: false, error: err.message || 'Gagal mendaftar akun baru.' }
+    }
+  },
+
+  // Tambah User Baru oleh Admin (Bebas wewenang role, tanpa terikat toggle registrasi publik)
+  async createUser(userData) {
+    const supabase = getSupabase()
+    if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
+
+    try {
+      const payload = {
+        name: userData.name.trim(),
+        username: userData.username.trim().toLowerCase(),
+        email: userData.email.trim().toLowerCase(),
+        password: userData.password ? userData.password.trim() : 'password123',
+        division: userData.division || 'Operasional',
+        role: userData.role || 'staff'
+      }
+
       const { data, error } = await supabase
         .from('app_users')
-        .insert([{
-          username: userData.username.trim().toLowerCase(),
-          email: userData.email.trim().toLowerCase(),
-          password: userData.password,
-          name: userData.name,
-          role: 'staff',
-          division: userData.division || 'Operasional'
-        }])
+        .insert([payload])
         .select('id, username, email, name, role, division')
         .single()
 
       if (error) {
         if (error.code === '23505') {
-          return { success: false, error: 'Username atau email tersebut sudah terdaftar.' }
+          return { success: false, error: 'Username atau email sudah digunakan oleh user lain.' }
         }
         throw error
       }
 
       return { success: true, user: data }
     } catch (err) {
-      console.error('Register error:', err)
-      return { success: false, error: err.message || 'Gagal mendaftar akun baru.' }
+      console.error('Create user error:', err)
+      return { success: false, error: err.message || 'Gagal menambahkan akun pengguna.' }
     }
   },
 
