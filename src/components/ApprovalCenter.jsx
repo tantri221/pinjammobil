@@ -547,15 +547,22 @@ export function ApprovalCenter({
                     </div>
 
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-slate-400 text-[10px] font-bold uppercase flex items-center gap-1">
-                        <Info className="h-3.5 w-3.5 text-purple-600" />
-                        <span>Odometer Awal</span>
+                      <div className="text-slate-400 text-[10px] font-bold uppercase flex items-center justify-between">
+                        <span className="flex items-center gap-1">
+                          <Info className="h-3.5 w-3.5 text-purple-600" />
+                          <span>KM & BBM Awal</span>
+                        </span>
+                        {loan.start_fuel && (
+                          <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded font-mono font-bold text-[10px]">
+                            ⛽ {loan.start_fuel}
+                          </span>
+                        )}
                       </div>
                       <div className="font-mono font-bold text-slate-900 mt-1">
                         {loan.start_mileage?.toLocaleString('id-ID') || 0} KM
                       </div>
-                      <div className="text-slate-400 text-[11px] mt-0.5">
-                        {loan.notes?.split('__APPROVAL_DATA__:')[0]?.trim() || 'Tidak ada catatan tambahan'}
+                      <div className="text-slate-500 text-[11px] mt-0.5 truncate" title={loan.displayNotes || loan.notes}>
+                        {loan.displayNotes || loan.notes?.split('__APPROVAL_DATA__:')[0]?.trim() || 'Tidak ada catatan tambahan'}
                       </div>
                     </div>
                   </div>

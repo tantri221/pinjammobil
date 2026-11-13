@@ -139,12 +139,21 @@ export const api = {
 
       if (error) throw error
 
-      const formatted = (data || []).map(item => ({
-        ...item,
-        vehicle_name: item.vehicles?.name || item.vehicle_name,
-        license_plate: item.vehicles?.license_plate || item.license_plate,
-        approvals: this.parseLoanApprovals(item)
-      }))
+      const formatted = (data || []).map(item => {
+        const fuelMatch = item.notes?.match(/\[BBM Awal:\s*([^\]]+)\]/i)
+        const start_fuel = fuelMatch ? fuelMatch[1].trim() : (item.start_fuel || '')
+        const rawNote = item.notes?.split('__APPROVAL_DATA__:')[0]?.trim() || ''
+        const displayNotes = rawNote.replace(/\[BBM Awal:\s*[^\]]+\]/i, '').trim()
+
+        return {
+          ...item,
+          vehicle_name: item.vehicles?.name || item.vehicle_name,
+          license_plate: item.vehicles?.license_plate || item.license_plate,
+          start_fuel,
+          displayNotes,
+          approvals: this.parseLoanApprovals(item)
+        }
+      })
 
       return { data: formatted, error: null }
     } catch (err) {
@@ -165,8 +174,11 @@ export const api = {
       }
 
       const userNote = (loanData.notes || '').trim()
-      const notesWithApproval = userNote
-        ? `${userNote}\n\n__APPROVAL_DATA__:${JSON.stringify(initialApprovals)}`
+      const fuelPrefix = loanData.start_fuel ? `[BBM Awal: ${loanData.start_fuel}]` : ''
+      const combinedUserNote = [fuelPrefix, userNote].filter(Boolean).join(' ')
+
+      const notesWithApproval = combinedUserNote
+        ? `${combinedUserNote}\n\n__APPROVAL_DATA__:${JSON.stringify(initialApprovals)}`
         : `__APPROVAL_DATA__:${JSON.stringify(initialApprovals)}`
 
       const payload = {
@@ -188,6 +200,17 @@ export const api = {
         .select()
 
       if (error) throw error
+
+      // Update level BBM di armada jika diinput
+      if (loanData.start_fuel && loanData.vehicle_id) {
+        const numericFuel = parseInt(loanData.start_fuel, 10)
+        if (!isNaN(numericFuel)) {
+          await supabase
+            .from('vehicles')
+            .update({ fuel_level: numericFuel })
+            .eq('id', loanData.vehicle_id)
+        }
+      }
 
       return { success: true, data: data[0] }
     } catch (err) {

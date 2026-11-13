@@ -8,11 +8,12 @@ export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVeh
     borrower_name: '',
     division: 'Sales',
     vehicle_id: '',
+    start_mileage: '',
+    start_fuel: '100%',
     purpose: 'Test Drive Pelanggan',
     destination: '',
     start_date: '',
     end_date: '',
-    start_mileage: '',
     notes: ''
   })
 
@@ -29,12 +30,16 @@ export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVeh
         return new Date(d.getTime() - offset).toISOString().slice(0, 16)
       }
 
+      const defaultVehicle = selectedVehicle || availableVehicles[0]
+      const defaultFuel = defaultVehicle?.fuel_level != null ? `${defaultVehicle.fuel_level}%` : '100%'
+
       setFormData(prev => ({
         ...prev,
         borrower_name: currentUser?.name || prev.borrower_name || '',
         division: currentUser?.division || prev.division || 'Sales',
-        vehicle_id: selectedVehicle ? String(selectedVehicle.id) : (availableVehicles[0]?.id ? String(availableVehicles[0].id) : ''),
-        start_mileage: selectedVehicle ? String(selectedVehicle.mileage || 0) : '',
+        vehicle_id: defaultVehicle ? String(defaultVehicle.id) : '',
+        start_mileage: defaultVehicle ? String(defaultVehicle.mileage || 0) : '',
+        start_fuel: defaultFuel,
         start_date: toLocalISO(now),
         end_date: toLocalISO(end)
       }))
@@ -47,7 +52,8 @@ export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVeh
     setFormData(prev => ({
       ...prev,
       vehicle_id: vId,
-      start_mileage: found ? String(found.mileage || 0) : prev.start_mileage
+      start_mileage: found ? String(found.mileage || 0) : prev.start_mileage,
+      start_fuel: found?.fuel_level != null ? `${found.fuel_level}%` : prev.start_fuel
     }))
   }
 
@@ -110,39 +116,58 @@ export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVeh
           </div>
         </div>
 
-        {/* Pilihan Kendaraan & KM Awal */}
+        {/* Pilihan Kendaraan */}
+        <div>
+          <label className="block text-xs font-semibold text-zinc-700 mb-1">
+            Unit Kendaraan <span className="text-red-500">*</span>
+          </label>
+          <Select
+            required
+            value={formData.vehicle_id}
+            onChange={handleVehicleChange}
+          >
+            {availableVehicles.length === 0 ? (
+              <option value="" disabled>Tidak ada unit tersedia</option>
+            ) : (
+              availableVehicles.map(v => (
+                <option key={v.id} value={v.id}>
+                  {v.name} ({v.license_plate}) • Level BBM: {v.fuel_level ?? 100}%
+                </option>
+              ))
+            )}
+          </Select>
+        </div>
+
+        {/* Kondisi KM Awal & BBM Awal */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-zinc-700 mb-1">
-              Unit Kendaraan <span className="text-red-500">*</span>
-            </label>
-            <Select
-              required
-              value={formData.vehicle_id}
-              onChange={handleVehicleChange}
-            >
-              {availableVehicles.length === 0 ? (
-                <option value="" disabled>Tidak ada unit tersedia</option>
-              ) : (
-                availableVehicles.map(v => (
-                  <option key={v.id} value={v.id}>
-                    {v.name} ({v.license_plate})
-                  </option>
-                ))
-              )}
-            </Select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-zinc-700 mb-1">
-              KM Awal Speedometer
+              KM Awal Speedometer <span className="text-red-500">*</span>
             </label>
             <Input
               type="number"
+              required
               placeholder="KM Awal"
               value={formData.start_mileage}
               onChange={e => setFormData({ ...formData, start_mileage: e.target.value })}
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-zinc-700 mb-1">
+              Kondisi BBM Awal <span className="text-red-500">*</span>
+            </label>
+            <Select
+              required
+              value={formData.start_fuel}
+              onChange={e => setFormData({ ...formData, start_fuel: e.target.value })}
+            >
+              <option value="100%">Full Tank (100%)</option>
+              <option value="75%">3/4 Tank (75%)</option>
+              <option value="50%">1/2 Tank (50%)</option>
+              <option value="25%">1/4 Tank (25%)</option>
+              <option value="10%">Res / Hampir Habis (10%)</option>
+            </Select>
           </div>
         </div>
 
