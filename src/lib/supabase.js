@@ -4,8 +4,14 @@ const STORAGE_KEY_URL = 'pinjammobil_supabase_url'
 const STORAGE_KEY_ANON = 'pinjammobil_supabase_anon_key'
 
 export function getSupabaseConfig() {
-  const envUrl = import.meta.env.VITE_SUPABASE_URL
-  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  const envUrl = 
+    import.meta.env.VITE_SUPABASE_URL || 
+    import.meta.env.NEXT_PUBLIC_SUPABASE_URL || ''
+
+  const envKey = 
+    import.meta.env.VITE_SUPABASE_ANON_KEY || 
+    import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 
+    import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
   const localUrl = localStorage.getItem(STORAGE_KEY_URL)
   const localKey = localStorage.getItem(STORAGE_KEY_ANON)
