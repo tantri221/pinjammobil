@@ -92,13 +92,18 @@ export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = nu
                       {/* Unit */}
                       <td className="py-3.5 px-4">
                         <div className="font-bold text-slate-900">{loan.vehicle_name || 'Unit Mobil'}</div>
-                        <div className="flex items-center gap-1.5 mt-0.5">
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                           <span className="font-mono text-[11px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
                             {loan.license_plate || '-'}
                           </span>
                           {loan.start_fuel && (
                             <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
                               ⛽ {loan.start_fuel}
+                            </span>
+                          )}
+                          {loan.buy_fuel === 'YA' && (
+                            <span className="text-[10px] font-mono font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-300">
+                              +BBM Rp {loan.fuel_amount}
                             </span>
                           )}
                         </div>

@@ -558,8 +558,17 @@ export function ApprovalCenter({
                           </span>
                         )}
                       </div>
-                      <div className="font-mono font-bold text-slate-900 mt-1">
-                        {loan.start_mileage?.toLocaleString('id-ID') || 0} KM
+                      <div className="font-mono font-bold text-slate-900 mt-1 flex items-center justify-between">
+                        <span>{loan.start_mileage?.toLocaleString('id-ID') || 0} KM</span>
+                        {loan.buy_fuel === 'YA' ? (
+                          <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.2 rounded">
+                            Beli BBM: Rp {loan.fuel_amount}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">
+                            Beli BBM: Tidak
+                          </span>
+                        )}
                       </div>
                       <div className="text-slate-500 text-[11px] mt-0.5 truncate" title={loan.displayNotes || loan.notes}>
                         {loan.displayNotes || loan.notes?.split('__APPROVAL_DATA__:')[0]?.trim() || 'Tidak ada catatan tambahan'}
@@ -834,6 +843,12 @@ export function ApprovalCenter({
               <div className="flex justify-between">
                 <span className="text-slate-500">Destinasi:</span>
                 <span className="font-semibold text-slate-700">{selectedLoan.destination}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Pengajuan Beli BBM:</span>
+                <span className={`font-bold ${selectedLoan.buy_fuel === 'YA' ? 'text-amber-700' : 'text-slate-600'}`}>
+                  {selectedLoan.buy_fuel === 'YA' ? `YA (Rp ${selectedLoan.fuel_amount})` : 'TIDAK'}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Tahap Otorisasi:</span>

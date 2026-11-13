@@ -10,6 +10,8 @@ export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVeh
     vehicle_id: '',
     start_mileage: '',
     start_fuel: '100%',
+    buy_fuel: 'TIDAK',
+    fuel_amount: '100.000',
     purpose: 'Test Drive Pelanggan',
     destination: '',
     start_date: '',
@@ -40,6 +42,8 @@ export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVeh
         vehicle_id: defaultVehicle ? String(defaultVehicle.id) : '',
         start_mileage: defaultVehicle ? String(defaultVehicle.mileage || 0) : '',
         start_fuel: defaultFuel,
+        buy_fuel: 'TIDAK',
+        fuel_amount: '100.000',
         start_date: toLocalISO(now),
         end_date: toLocalISO(end)
       }))
@@ -169,6 +173,76 @@ export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVeh
               <option value="10%">Res / Hampir Habis (10%)</option>
             </Select>
           </div>
+        </div>
+
+        {/* Input Pengajuan Beli BBM (YA / TIDAK) & Pilihan Nominal */}
+        <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <label className="block text-xs font-bold text-slate-800">
+                Pengajuan Beli BBM? <span className="text-red-500">*</span>
+              </label>
+              <p className="text-[11px] text-slate-500">
+                Pilih YA jika operasional memerlukan pengisian/pembelian bahan bakar.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, buy_fuel: 'TIDAK', fuel_amount: '' })}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  formData.buy_fuel === 'TIDAK'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-100'
+                }`}
+              >
+                TIDAK
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ 
+                  ...formData, 
+                  buy_fuel: 'YA', 
+                  fuel_amount: formData.fuel_amount || '100.000' 
+                })}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  formData.buy_fuel === 'YA'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-100'
+                }`}
+              >
+                YA
+              </button>
+            </div>
+          </div>
+
+          {/* Input Nominal Pembelian BBM jika pilihannya YA */}
+          {formData.buy_fuel === 'YA' && (
+            <div className="pt-2.5 border-t border-slate-200 animate-in fade-in duration-200 space-y-1">
+              <label className="block text-xs font-bold text-emerald-800">
+                Nominal Pembelian BBM <span className="text-red-500">*</span>
+              </label>
+              <Select
+                required
+                value={formData.fuel_amount}
+                onChange={e => setFormData({ ...formData, fuel_amount: e.target.value })}
+                className="bg-white border-emerald-300 text-emerald-950 font-bold"
+              >
+                <option value="50.000">Rp 50.000</option>
+                <option value="100.000">Rp 100.000</option>
+                <option value="150.000">Rp 150.000</option>
+                <option value="200.000">Rp 200.000</option>
+                <option value="250.000">Rp 250.000</option>
+                <option value="300.000">Rp 300.000</option>
+                <option value="350.000">Rp 350.000</option>
+                <option value="400.000">Rp 400.000</option>
+              </Select>
+              <p className="text-[11px] text-emerald-700">
+                Pengajuan dana BBM ini akan diteruskan ke Supervisor (SPV) dan Admin Head (ADH) untuk disetujui.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Peruntukan & Tujuan */}

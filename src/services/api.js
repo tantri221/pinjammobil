@@ -142,15 +142,26 @@ export const api = {
       const formatted = (data || []).map(item => {
         const fuelMatch = item.notes?.match(/\[BBM Awal:\s*([^\]]+)\]/i)
         const start_fuel = fuelMatch ? fuelMatch[1].trim() : (item.start_fuel || '')
-        const rawNote = item.notes?.split('__APPROVAL_DATA__:')[0]?.trim() || ''
-        const displayNotes = rawNote.replace(/\[BBM Awal:\s*[^\]]+\]/i, '').trim()
+
+        const buyFuelMatch = item.notes?.match(/\[Beli BBM:\s*([^\]]+)\]/i)
+        const buyFuelRaw = buyFuelMatch ? buyFuelMatch[1].trim() : ''
+        const buy_fuel = buyFuelRaw.startsWith('YA') ? 'YA' : 'TIDAK'
+        const fuel_amount = buyFuelRaw.includes('- Rp') ? buyFuelRaw.split('- Rp')[1].trim() : ''
+
+        let cleanNote = item.notes?.split('__APPROVAL_DATA__:')[0]?.trim() || ''
+        cleanNote = cleanNote
+          .replace(/\[BBM Awal:\s*[^\]]+\]/gi, '')
+          .replace(/\[Beli BBM:\s*[^\]]+\]/gi, '')
+          .trim()
 
         return {
           ...item,
           vehicle_name: item.vehicles?.name || item.vehicle_name,
           license_plate: item.vehicles?.license_plate || item.license_plate,
           start_fuel,
-          displayNotes,
+          buy_fuel,
+          fuel_amount,
+          displayNotes: cleanNote,
           approvals: this.parseLoanApprovals(item)
         }
       })
@@ -175,7 +186,11 @@ export const api = {
 
       const userNote = (loanData.notes || '').trim()
       const fuelPrefix = loanData.start_fuel ? `[BBM Awal: ${loanData.start_fuel}]` : ''
-      const combinedUserNote = [fuelPrefix, userNote].filter(Boolean).join(' ')
+      const buyFuelPrefix = loanData.buy_fuel === 'YA' 
+        ? `[Beli BBM: YA - Rp ${loanData.fuel_amount || '100.000'}]` 
+        : `[Beli BBM: TIDAK]`
+
+      const combinedUserNote = [fuelPrefix, buyFuelPrefix, userNote].filter(Boolean).join(' ')
 
       const notesWithApproval = combinedUserNote
         ? `${combinedUserNote}\n\n__APPROVAL_DATA__:${JSON.stringify(initialApprovals)}`
