@@ -1,10 +1,10 @@
 import React from 'react'
-import { Fuel, Gauge, Users, CheckCircle, AlertTriangle, Key } from 'lucide-react'
+import { Fuel, Gauge, Users, Key, Edit, Trash2 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from './ui/Card'
 import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
 
-export function VehicleCard({ vehicle, onBorrow }) {
+export function VehicleCard({ vehicle, onBorrow, onEdit, onDelete }) {
   const statusConfig = {
     available: {
       label: 'Tersedia',
@@ -26,7 +26,7 @@ export function VehicleCard({ vehicle, onBorrow }) {
   const currentStatus = statusConfig[vehicle.status] || statusConfig.available
 
   return (
-    <Card className="flex flex-col justify-between hover:shadow-md hover:border-zinc-300 transition-all duration-200">
+    <Card className="flex flex-col justify-between hover:shadow-md hover:border-zinc-300 transition-all duration-200 group">
       <div>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-2">
@@ -38,9 +38,29 @@ export function VehicleCard({ vehicle, onBorrow }) {
                 {vehicle.name}
               </CardTitle>
             </div>
-            <Badge variant={currentStatus.variant}>
-              {currentStatus.label}
-            </Badge>
+            <div className="flex items-center gap-1.5">
+              <Badge variant={currentStatus.variant}>
+                {currentStatus.label}
+              </Badge>
+              
+              {/* Quick actions for Edit / Delete */}
+              <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => onEdit(vehicle)}
+                  className="p-1 text-zinc-400 hover:text-zinc-700 rounded hover:bg-zinc-100 transition-colors"
+                  title="Edit data kendaraan"
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => onDelete(vehicle)}
+                  className="p-1 text-zinc-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors"
+                  title="Hapus kendaraan"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="mt-1">
@@ -69,14 +89,14 @@ export function VehicleCard({ vehicle, onBorrow }) {
               <span className="flex items-center gap-1">
                 <Fuel className="h-3 w-3" /> Level BBM
               </span>
-              <span className="font-semibold text-zinc-700">{vehicle.fuel_level || 100}%</span>
+              <span className="font-semibold text-zinc-700">{vehicle.fuel_level ?? 100}%</span>
             </div>
             <div className="w-full bg-zinc-100 rounded-full h-1.5 overflow-hidden">
               <div 
                 className={`h-full rounded-full ${
-                  (vehicle.fuel_level || 100) > 40 ? 'bg-emerald-500' : 'bg-amber-500'
+                  (vehicle.fuel_level ?? 100) > 40 ? 'bg-emerald-500' : 'bg-amber-500'
                 }`}
-                style={{ width: `${vehicle.fuel_level || 100}%` }}
+                style={{ width: `${vehicle.fuel_level ?? 100}%` }}
               />
             </div>
           </div>

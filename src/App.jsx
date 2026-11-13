@@ -4,10 +4,11 @@ import { StatsCards } from './components/StatsCards'
 import { VehicleGrid } from './components/VehicleGrid'
 import { LoanHistoryTable } from './components/LoanHistoryTable'
 import { LoanFormModal } from './components/LoanFormModal'
+import { VehicleFormModal } from './components/VehicleFormModal'
 import { SupabaseSettingsModal } from './components/SupabaseSettingsModal'
 import { api } from './services/api'
 import { getSupabaseConfig } from './lib/supabase'
-import { Car, Clock, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Car, Clock, CheckCircle2, AlertCircle } from 'lucide-react'
 
 export default function App() {
   const [vehicles, setVehicles] = useState([])
@@ -21,6 +22,10 @@ export default function App() {
   // Modals
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false)
   const [selectedVehicle, setSelectedVehicle] = useState(null)
+  
+  const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false)
+  const [editingVehicle, setEditingVehicle] = useState(null)
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   // Toast
@@ -53,6 +58,49 @@ export default function App() {
     loadData()
   }, [loadData])
 
+  // --- Vehicle CRUD Handlers ---
+  const handleOpenAddVehicle = () => {
+    setEditingVehicle(null)
+    setIsVehicleModalOpen(true)
+  }
+
+  const handleOpenEditVehicle = (vehicle) => {
+    setEditingVehicle(vehicle)
+    setIsVehicleModalOpen(true)
+  }
+
+  const handleSubmitVehicle = async (formData, vehicleId) => {
+    if (vehicleId) {
+      const res = await api.updateVehicle(vehicleId, formData)
+      if (res.success) {
+        showToast('Data armada berhasil diperbarui!')
+        loadData()
+      } else {
+        showToast(res.error || 'Gagal memperbarui armada.', 'error')
+      }
+    } else {
+      const res = await api.createVehicle(formData)
+      if (res.success) {
+        showToast('Armada baru berhasil ditambahkan!')
+        loadData()
+      } else {
+        showToast(res.error || 'Gagal menambahkan armada.', 'error')
+      }
+    }
+  }
+
+  const handleDeleteVehicle = async (vehicle) => {
+    if (!window.confirm(`Yakin ingin menghapus unit "${vehicle.name} (${vehicle.license_plate})"?`)) return
+    const res = await api.deleteVehicle(vehicle.id)
+    if (res.success) {
+      showToast('Unit kendaraan berhasil dihapus!')
+      loadData()
+    } else {
+      showToast(res.error || 'Gagal menghapus armada.', 'error')
+    }
+  }
+
+  // --- Loan CRUD Handlers ---
   const handleOpenBorrowModal = (vehicle = null) => {
     setSelectedVehicle(vehicle)
     setIsLoanModalOpen(true)
@@ -64,7 +112,7 @@ export default function App() {
       showToast('Peminjaman mobil berhasil didaftarkan!')
       loadData()
     } else {
-      showToast('Gagal mendaftarkan peminjaman.', 'error')
+      showToast(res.error || 'Gagal mendaftarkan peminjaman.', 'error')
     }
   }
 
@@ -74,7 +122,18 @@ export default function App() {
       showToast('Unit kendaraan telah dikembalikan dan siap dipinjam kembali.')
       loadData()
     } else {
-      showToast('Gagal memproses pengembalian.', 'error')
+      showToast(res.error || 'Gagal memproses pengembalian.', 'error')
+    }
+  }
+
+  const handleDeleteLoan = async (loan) => {
+    if (!window.confirm(`Hapus riwayat peminjaman untuk "${loan.borrower_name}"?`)) return
+    const res = await api.deleteLoan(loan.id)
+    if (res.success) {
+      showToast('Riwayat peminjaman berhasil dihapus!')
+      loadData()
+    } else {
+      showToast(res.error || 'Gagal menghapus riwayat.', 'error')
     }
   }
 
@@ -118,14 +177,14 @@ export default function App() {
             <div className="flex items-center gap-2">
               <span className="flex h-2 w-2 rounded-full bg-amber-500 shrink-0" />
               <span>
-                <strong>Mode Demo Lokal:</strong> Data tersimpan di browser Anda. Hubungkan ke Supabase kapan saja untuk database cloud online bersama tim.
+                <strong>Mode Demo Lokal:</strong> Masukkan Supabase Anon Key Anda untuk menghubungkan REST API database cloud secara live.
               </span>
             </div>
             <button
               onClick={() => setIsSettingsOpen(true)}
               className="text-xs font-semibold text-amber-900 hover:text-black underline shrink-0 cursor-pointer"
             >
-              Hubungkan Supabase →
+              Masukkan Kunci Supabase →
             </button>
           </div>
         )}
@@ -133,7 +192,7 @@ export default function App() {
         {/* Stats Overview */}
         <StatsCards vehicles={vehicles} loans={loans} />
 
-        {/* Main Navigation Tabs (shadcn style) */}
+        {/* Main Navigation Tabs */}
         <div className="border-b border-zinc-200 pb-0 flex items-center justify-between">
           <div className="flex gap-6 -mb-px">
             <button
@@ -145,7 +204,7 @@ export default function App() {
               }`}
             >
               <Car className="h-4 w-4" />
-              <span>Katalog Armada Kendaraan</span>
+              <span>Katalog Armada Kendaraan ({vehicles.length})</span>
             </button>
 
             <button
@@ -172,11 +231,15 @@ export default function App() {
           <VehicleGrid
             vehicles={vehicles}
             onBorrow={handleOpenBorrowModal}
+            onAddVehicle={handleOpenAddVehicle}
+            onEditVehicle={handleOpenEditVehicle}
+            onDeleteVehicle={handleDeleteVehicle}
           />
         ) : (
           <LoanHistoryTable
             loans={loans}
             onReturnVehicle={handleReturnVehicle}
+            onDeleteLoan={handleDeleteLoan}
           />
         )}
 
@@ -205,6 +268,13 @@ export default function App() {
         selectedVehicle={selectedVehicle}
         availableVehicles={vehicles.filter(v => v.status === 'available')}
         onSubmit={handleSubmitLoan}
+      />
+
+      <VehicleFormModal
+        isOpen={isVehicleModalOpen}
+        onClose={() => setIsVehicleModalOpen(false)}
+        vehicleToEdit={editingVehicle}
+        onSubmit={handleSubmitVehicle}
       />
 
       <SupabaseSettingsModal

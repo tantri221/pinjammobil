@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
-import { Search, Filter, Layers } from 'lucide-react'
+import { Search, Plus, Layers } from 'lucide-react'
 import { VehicleCard } from './VehicleCard'
 import { Input } from './ui/Input'
+import { Button } from './ui/Button'
 
-export function VehicleGrid({ vehicles = [], onBorrow }) {
+export function VehicleGrid({ vehicles = [], onBorrow, onAddVehicle, onEditVehicle, onDeleteVehicle }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
 
@@ -50,15 +51,27 @@ export function VehicleGrid({ vehicles = [], onBorrow }) {
           ))}
         </div>
 
-        {/* Search Input */}
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
-          <Input
-            placeholder="Cari armada / no. polisi..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8 text-xs h-9"
-          />
+        {/* Search Input & Add Vehicle Button */}
+        <div className="flex items-center gap-2">
+          <div className="relative w-full sm:w-60">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
+            <Input
+              placeholder="Cari armada / no. polisi..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8 text-xs h-9"
+            />
+          </div>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onAddVehicle}
+            className="text-xs h-9 shrink-0 gap-1"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Tambah Armada</span>
+          </Button>
         </div>
       </div>
 
@@ -70,6 +83,8 @@ export function VehicleGrid({ vehicles = [], onBorrow }) {
               key={vehicle.id}
               vehicle={vehicle}
               onBorrow={onBorrow}
+              onEdit={onEditVehicle}
+              onDelete={onDeleteVehicle}
             />
           ))}
         </div>

@@ -22,6 +22,11 @@ function setLocalData(key, data) {
 }
 
 export const api = {
+  // ==========================================
+  // 1. VEHICLES CRUD
+  // ==========================================
+  
+  // READ
   async getVehicles() {
     const supabase = getSupabase()
     if (supabase) {
@@ -31,18 +36,119 @@ export const api = {
           .select('*')
           .order('id', { ascending: true })
 
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
           return { data, source: 'supabase' }
         }
+        if (error) console.error('Supabase getVehicles error:', error.message)
       } catch (err) {
-        console.warn('Gagal memuat data dari Supabase, beralih ke local storage:', err)
+        console.warn('Gagal memuat kendaraan dari Supabase, fallback ke lokal:', err)
       }
     }
 
-    const localVehicles = getLocalData(LOCAL_VEHICLES_KEY, INITIAL_VEHICLES)
-    return { data: localVehicles, source: 'local' }
+    return { data: getLocalData(LOCAL_VEHICLES_KEY, INITIAL_VEHICLES), source: 'local' }
   },
 
+  // CREATE
+  async createVehicle(vehicleData) {
+    const supabase = getSupabase()
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('vehicles')
+          .insert([{
+            name: vehicleData.name,
+            license_plate: vehicleData.license_plate,
+            type: vehicleData.type || 'MPV',
+            status: vehicleData.status || 'available',
+            capacity: Number(vehicleData.capacity) || 7,
+            fuel_level: Number(vehicleData.fuel_level) || 100,
+            mileage: Number(vehicleData.mileage) || 0
+          }])
+          .select()
+
+        if (!error && data) {
+          return { success: true, data: data[0], source: 'supabase' }
+        }
+        if (error) throw error
+      } catch (err) {
+        console.error('Supabase createVehicle error:', err)
+        return { success: false, error: err.message }
+      }
+    }
+
+    // Local fallback
+    const vehicles = getLocalData(LOCAL_VEHICLES_KEY, INITIAL_VEHICLES)
+    const newVehicle = {
+      id: Date.now(),
+      ...vehicleData,
+      capacity: Number(vehicleData.capacity) || 7,
+      fuel_level: Number(vehicleData.fuel_level) || 100,
+      mileage: Number(vehicleData.mileage) || 0,
+      status: vehicleData.status || 'available'
+    }
+    const updated = [...vehicles, newVehicle]
+    setLocalData(LOCAL_VEHICLES_KEY, updated)
+    return { success: true, data: newVehicle, source: 'local' }
+  },
+
+  // UPDATE
+  async updateVehicle(id, updates) {
+    const supabase = getSupabase()
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('vehicles')
+          .update(updates)
+          .eq('id', id)
+          .select()
+
+        if (!error && data) {
+          return { success: true, data: data[0], source: 'supabase' }
+        }
+        if (error) throw error
+      } catch (err) {
+        console.error('Supabase updateVehicle error:', err)
+        return { success: false, error: err.message }
+      }
+    }
+
+    // Local fallback
+    const vehicles = getLocalData(LOCAL_VEHICLES_KEY, INITIAL_VEHICLES)
+    const updated = vehicles.map(v => v.id === id ? { ...v, ...updates } : v)
+    setLocalData(LOCAL_VEHICLES_KEY, updated)
+    return { success: true, source: 'local' }
+  },
+
+  // DELETE
+  async deleteVehicle(id) {
+    const supabase = getSupabase()
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('vehicles')
+          .delete()
+          .eq('id', id)
+
+        if (!error) return { success: true, source: 'supabase' }
+        if (error) throw error
+      } catch (err) {
+        console.error('Supabase deleteVehicle error:', err)
+        return { success: false, error: err.message }
+      }
+    }
+
+    // Local fallback
+    const vehicles = getLocalData(LOCAL_VEHICLES_KEY, INITIAL_VEHICLES)
+    const updated = vehicles.filter(v => v.id !== id)
+    setLocalData(LOCAL_VEHICLES_KEY, updated)
+    return { success: true, source: 'local' }
+  },
+
+  // ==========================================
+  // 2. LOANS CRUD
+  // ==========================================
+
+  // READ
   async getLoans() {
     const supabase = getSupabase()
     if (supabase) {
@@ -60,15 +166,16 @@ export const api = {
           }))
           return { data: formatted, source: 'supabase' }
         }
+        if (error) console.error('Supabase getLoans error:', error.message)
       } catch (err) {
-        console.warn('Gagal memuat data pinjaman dari Supabase, beralih ke local storage:', err)
+        console.warn('Gagal memuat pinjaman dari Supabase, fallback ke lokal:', err)
       }
     }
 
-    const localLoans = getLocalData(LOCAL_LOANS_KEY, INITIAL_LOANS)
-    return { data: localLoans, source: 'local' }
+    return { data: getLocalData(LOCAL_LOANS_KEY, INITIAL_LOANS), source: 'local' }
   },
 
+  // CREATE
   async createLoan(loanData) {
     const supabase = getSupabase()
     if (supabase) {
@@ -91,7 +198,7 @@ export const api = {
           .insert([payload])
           .select()
 
-        if (!error) {
+        if (!error && data) {
           // Update status kendaraan menjadi borrowed
           await supabase
             .from('vehicles')
@@ -100,16 +207,18 @@ export const api = {
 
           return { success: true, data: data[0], source: 'supabase' }
         }
+        if (error) throw error
       } catch (err) {
         console.error('Error createLoan Supabase:', err)
+        return { success: false, error: err.message }
       }
     }
 
-    // Fallback Local Storage
+    // Local fallback
     const loans = getLocalData(LOCAL_LOANS_KEY, INITIAL_LOANS)
     const vehicles = getLocalData(LOCAL_VEHICLES_KEY, INITIAL_VEHICLES)
-
     const vehicle = vehicles.find(v => v.id === Number(loanData.vehicle_id))
+
     const newLoan = {
       id: Date.now(),
       ...loanData,
@@ -119,29 +228,28 @@ export const api = {
       created_at: new Date().toISOString()
     }
 
-    const updatedLoans = [newLoan, ...loans]
-    setLocalData(LOCAL_LOANS_KEY, updatedLoans)
-
-    // Update vehicle status locally
-    const updatedVehicles = vehicles.map(v => 
+    setLocalData(LOCAL_LOANS_KEY, [newLoan, ...loans])
+    setLocalData(LOCAL_VEHICLES_KEY, vehicles.map(v => 
       v.id === Number(loanData.vehicle_id) ? { ...v, status: 'borrowed' } : v
-    )
-    setLocalData(LOCAL_VEHICLES_KEY, updatedVehicles)
+    ))
 
     return { success: true, data: newLoan, source: 'local' }
   },
 
+  // UPDATE (Kembalikan Mobil)
   async returnVehicle(loanId, vehicleId, endMileage) {
     const supabase = getSupabase()
     if (supabase) {
       try {
-        await supabase
+        const { error: loanErr } = await supabase
           .from('loans')
           .update({ 
             status: 'completed',
             end_mileage: Number(endMileage)
           })
           .eq('id', loanId)
+
+        if (loanErr) throw loanErr
 
         if (vehicleId) {
           await supabase
@@ -155,27 +263,50 @@ export const api = {
         return { success: true, source: 'supabase' }
       } catch (err) {
         console.error('Error returnVehicle Supabase:', err)
+        return { success: false, error: err.message }
       }
     }
 
-    // Local Storage
+    // Local fallback
     const loans = getLocalData(LOCAL_LOANS_KEY, INITIAL_LOANS)
     const vehicles = getLocalData(LOCAL_VEHICLES_KEY, INITIAL_VEHICLES)
 
-    const updatedLoans = loans.map(l => 
+    setLocalData(LOCAL_LOANS_KEY, loans.map(l => 
       l.id === loanId ? { ...l, status: 'completed', end_mileage: Number(endMileage) } : l
-    )
-    setLocalData(LOCAL_LOANS_KEY, updatedLoans)
+    ))
 
     if (vehicleId) {
-      const updatedVehicles = vehicles.map(v => 
+      setLocalData(LOCAL_VEHICLES_KEY, vehicles.map(v => 
         v.id === Number(vehicleId) 
           ? { ...v, status: 'available', mileage: Number(endMileage) || v.mileage } 
           : v
-      )
-      setLocalData(LOCAL_VEHICLES_KEY, updatedVehicles)
+      ))
     }
 
+    return { success: true, source: 'local' }
+  },
+
+  // DELETE LOAN
+  async deleteLoan(id) {
+    const supabase = getSupabase()
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('loans')
+          .delete()
+          .eq('id', id)
+
+        if (!error) return { success: true, source: 'supabase' }
+        if (error) throw error
+      } catch (err) {
+        console.error('Supabase deleteLoan error:', err)
+        return { success: false, error: err.message }
+      }
+    }
+
+    // Local fallback
+    const loans = getLocalData(LOCAL_LOANS_KEY, INITIAL_LOANS)
+    setLocalData(LOCAL_LOANS_KEY, loans.filter(l => l.id !== id))
     return { success: true, source: 'local' }
   }
 }

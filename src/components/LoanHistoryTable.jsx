@@ -1,12 +1,12 @@
 import React, { useState } from 'react'
-import { CheckCircle2, Clock, MapPin, Calendar, Check, CornerDownLeft } from 'lucide-react'
+import { CheckCircle2, Clock, MapPin, Check, CornerDownLeft, Trash2 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from './ui/Card'
 import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
 import { Modal } from './ui/Modal'
 import { Input } from './ui/Input'
 
-export function LoanHistoryTable({ loans = [], onReturnVehicle }) {
+export function LoanHistoryTable({ loans = [], onReturnVehicle, onDeleteLoan }) {
   const [returningLoan, setReturningLoan] = useState(null)
   const [endMileage, setEndMileage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -137,21 +137,31 @@ export function LoanHistoryTable({ loans = [], onReturnVehicle }) {
 
                         {/* Aksi */}
                         <td className="py-3 px-4 text-right">
-                          {!isCompleted ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleOpenReturn(loan)}
-                              className="text-xs h-7 gap-1"
+                          <div className="flex items-center justify-end gap-2">
+                            {!isCompleted ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOpenReturn(loan)}
+                                className="text-xs h-7 gap-1"
+                              >
+                                <CornerDownLeft className="h-3 w-3" />
+                                Kembalikan
+                              </Button>
+                            ) : (
+                              <span className="text-[11px] text-zinc-400">
+                                {loan.end_mileage ? `${loan.end_mileage.toLocaleString()} KM` : '-'}
+                              </span>
+                            )}
+
+                            <button
+                              onClick={() => onDeleteLoan(loan)}
+                              className="p-1 text-zinc-300 hover:text-rose-600 rounded transition-colors"
+                              title="Hapus riwayat pinjaman ini"
                             >
-                              <CornerDownLeft className="h-3 w-3" />
-                              Kembalikan
-                            </Button>
-                          ) : (
-                            <span className="text-[11px] text-zinc-400">
-                              {loan.end_mileage ? `${loan.end_mileage.toLocaleString()} KM` : '-'}
-                            </span>
-                          )}
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </td>
 
                       </tr>
