@@ -1,12 +1,25 @@
 import React, { useState } from 'react'
-import { Clock, MapPin, Check, CornerDownLeft, Trash2, XCircle, CheckCircle2, Car } from 'lucide-react'
+import { Clock, MapPin, Check, CornerDownLeft, Trash2, XCircle, CheckCircle2, Car, Ban, AlertCircle } from 'lucide-react'
 import { Modal } from './ui/Modal'
 import { isTestDriveLoan } from '../lib/utils'
 
-export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = null, onReturnVehicle, onDeleteLoan }) {
+export function LoanHistoryTable({ 
+  loans = [], 
+  isAdmin = false, 
+  currentUser = null, 
+  onReturnVehicle, 
+  onDeleteLoan,
+  onCancelLoan 
+}) {
   const [returningLoan, setReturningLoan] = useState(null)
   const [endMileage, setEndMileage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // State Modal Pembatalan Pengajuan
+  const [cancellingLoan, setCancellingLoan] = useState(null)
+  const [cancelReason, setCancelReason] = useState('')
+  const [isCancelling, setIsCancelling] = useState(false)
+  const [cancelError, setCancelError] = useState('')
 
   const handleOpenReturn = (loan) => {
     setReturningLoan(loan)
@@ -22,6 +35,36 @@ export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = nu
       setReturningLoan(null)
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleOpenCancel = (loan) => {
+    setCancellingLoan(loan)
+    setCancelReason('')
+    setCancelError('')
+  }
+
+  const handleConfirmCancel = async (e) => {
+    e.preventDefault()
+    if (!cancellingLoan) return
+    if (!cancelReason.trim()) {
+      setCancelError('Mohon berikan alasan pembatalan pengajuan peminjaman.')
+      return
+    }
+
+    setIsCancelling(true)
+    setCancelError('')
+    try {
+      if (onCancelLoan) {
+        const res = await onCancelLoan(cancellingLoan.id, cancellingLoan.vehicle_id, cancelReason)
+        if (res && res.success === false) {
+          setCancelError(res.error || 'Gagal membatalkan pengajuan.')
+          return
+        }
+      }
+      setCancellingLoan(null)
+    } finally {
+      setIsCancelling(false)
     }
   }
 
@@ -43,44 +86,58 @@ export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = nu
 
   return (
     <>
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        {/* Table Header Info */}
-        <div className="p-5 flex flex-row items-center justify-between border-b border-slate-100">
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+        {/* Header Tabel */}
+        <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
           <div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Rekap Operasional
+            </span>
             <h3 className="text-base font-bold text-slate-800">
               Histori & Status Peminjaman Kendaraan
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Daftar seluruh transaksi peminjaman unit operasional
-            </p>
           </div>
-          <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
-            {loans.length} Transaksi
-          </span>
+          <div className="text-xs font-semibold text-slate-500 bg-white px-3 py-1.5 rounded-xl border border-slate-200/80 shadow-2xs">
+            Total Transaksi: <span className="font-bold text-slate-800">{loans.length}</span>
+          </div>
         </div>
 
+        {/* Tabel Data */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+          <table className="w-full text-left text-xs text-slate-700">
+            <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200/80">
               <tr>
                 <th className="py-3 px-4">Peminjam</th>
-                <th className="py-3 px-4">Kendaraan</th>
+                <th className="py-3 px-4">Unit Mobil</th>
                 <th className="py-3 px-4">Jadwal Pinjam</th>
                 <th className="py-3 px-4">Tujuan / Keperluan</th>
-                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4">Status & Verifikasi</th>
                 <th className="py-3 px-4 text-right">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
+            <tbody className="divide-y divide-slate-100 font-normal">
               {loans.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400 text-xs font-medium">
-                    Belum ada data peminjaman kendaraan yang tercatat di database Supabase.
+                  <td colSpan="6" className="py-10 text-center text-slate-400">
+                    <Clock className="h-8 w-8 mx-auto mb-2 text-slate-300 stroke-1" />
+                    Belum ada riwayat transaksi peminjaman kendaraan.
                   </td>
                 </tr>
               ) : (
                 loans.map((loan) => {
                   const isCompleted = loan.status === 'completed'
+                  const isRejected = loan.status === 'rejected'
+                  const isPending = loan.status === 'pending'
+                  const isApproved = loan.status === 'approved'
+
+                  // Izin pembatalan: Admin, GA, SPV, ADH, atau pemohon itu sendiri
+                  const isMyLoan = currentUser?.name && loan.borrower_name?.toLowerCase() === currentUser.name.toLowerCase()
+                  const canCancel = (isPending || isApproved) && (
+                    isAdmin || 
+                    ['ga', 'spv', 'adh'].includes(currentUser?.role?.toLowerCase()) || 
+                    isMyLoan
+                  )
+
                   return (
                     <tr key={loan.id} className="hover:bg-slate-50/80 transition-colors">
                       
@@ -150,7 +207,7 @@ export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = nu
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <Check className="h-3 w-3 text-emerald-600" /> Selesai
                           </span>
-                        ) : loan.status === 'pending' ? (
+                        ) : isPending ? (
                           <div className="space-y-1">
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                               <Clock className="h-3 w-3 text-amber-600" /> Menunggu Persetujuan
@@ -189,9 +246,9 @@ export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = nu
                               </div>
                             )}
                           </div>
-                        ) : loan.status === 'rejected' ? (
+                        ) : isRejected ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                            <XCircle className="h-3 w-3 text-rose-600" /> Ditolak
+                            <XCircle className="h-3 w-3 text-rose-600" /> Dibatalkan / Ditolak
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
@@ -203,7 +260,9 @@ export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = nu
                       {/* Aksi */}
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {loan.status === 'approved' ? (
+                          
+                          {/* Tombol Kembalikan untuk yang Approved */}
+                          {isApproved && (
                             <button
                               onClick={() => handleOpenReturn(loan)}
                               className="px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white shadow-xs transition flex items-center gap-1 cursor-pointer"
@@ -211,21 +270,38 @@ export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = nu
                               <CornerDownLeft className="h-3 w-3" />
                               <span>Kembalikan</span>
                             </button>
-                          ) : isCompleted ? (
+                          )}
+
+                          {/* Tombol Tools Pembatalan (Bagi yang pending atau approved) */}
+                          {canCancel && (
+                            <button
+                              onClick={() => handleOpenCancel(loan)}
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                              title="Batalkan pengajuan peminjaman ini"
+                            >
+                              <Ban className="h-3 w-3" />
+                              <span>Batalkan</span>
+                            </button>
+                          )}
+
+                          {isCompleted && (
                             <span className="text-[11px] font-mono text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-200">
                               {loan.end_mileage ? `${loan.end_mileage.toLocaleString()} KM` : '-'}
                             </span>
-                          ) : (
-                            <span className="text-[10px] text-slate-400 italic">
-                              {loan.status === 'rejected' ? 'Pengajuan dibatalkan' : 'Menunggu otorisasi'}
+                          )}
+
+                          {isRejected && (
+                            <span className="text-[10px] text-rose-600 font-semibold bg-rose-50 border border-rose-100 px-2 py-0.5 rounded">
+                              Dibatalkan
                             </span>
                           )}
 
+                          {/* Tombol Hapus (Admin) */}
                           {isAdmin && (
                             <button
                               onClick={() => onDeleteLoan(loan)}
                               className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                              title="Hapus transaksi ini (Admin)"
+                              title="Hapus transaksi ini permanen (Admin)"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -299,6 +375,78 @@ export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = nu
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition cursor-pointer"
               >
                 {isSubmitting ? 'Menyimpan...' : 'Selesaikan Pengembalian'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Modal Batalkan Pengajuan Peminjaman */}
+      <Modal
+        isOpen={Boolean(cancellingLoan)}
+        onClose={() => setCancellingLoan(null)}
+        title="❌ Batalkan Pengajuan Peminjaman"
+        description="Pengajuan peminjaman akan dibatalkan dan status armada akan dipulihkan menjadi tersedia."
+        maxWidth="max-w-md"
+      >
+        {cancellingLoan && (
+          <form onSubmit={handleConfirmCancel} className="space-y-4 text-xs sm:text-sm">
+            {cancelError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-rose-500 shrink-0" />
+                <span>{cancelError}</span>
+              </div>
+            )}
+
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Peminjam:</span>
+                <span className="font-bold text-slate-800">{cancellingLoan.borrower_name} ({cancellingLoan.division})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Unit Armada:</span>
+                <span className="font-bold text-slate-800">{cancellingLoan.vehicle_name} ({cancellingLoan.license_plate})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Destinasi:</span>
+                <span className="font-semibold text-slate-700">{cancellingLoan.destination || '-'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Peruntukan:</span>
+                <span className="font-medium text-slate-700">{cancellingLoan.purpose}</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Alasan Pembatalan <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                rows={3}
+                required
+                placeholder="Contoh: Jadwal dinas di-reschedule / meeting dibatalkan / salah memilih unit armada..."
+                value={cancelReason}
+                onChange={e => setCancelReason(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-rose-500 outline-none"
+              />
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button 
+                type="button" 
+                onClick={() => setCancellingLoan(null)} 
+                disabled={isCancelling}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
+              >
+                Kembali
+              </button>
+              <button 
+                type="submit" 
+                disabled={isCancelling}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <Ban className="h-3.5 w-3.5" />
+                <span>{isCancelling ? 'Membatalkan...' : 'Konfirmasi Batalkan'}</span>
               </button>
             </div>
           </form>

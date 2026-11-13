@@ -402,6 +402,71 @@ export const api = {
     }
   },
 
+  async cancelLoan(loanId, vehicleId, cancelledBy, reason = '') {
+    const supabase = getSupabase()
+    if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }
+
+    try {
+      const { data: loan, error: fetchErr } = await supabase
+        .from('loans')
+        .select('*')
+        .eq('id', loanId)
+        .single()
+
+      if (fetchErr || !loan) {
+        return { success: false, error: 'Data peminjaman tidak ditemukan.' }
+      }
+
+      const currentApprovals = this.parseLoanApprovals(loan)
+      const cancelNote = `[Dibatalkan oleh ${cancelledBy?.name || 'Pengguna'} (${cancelledBy?.role?.toUpperCase() || 'USER'})]: ${reason || 'Pengajuan dibatalkan.'}`
+      
+      // Update stages with cancel note
+      if (currentApprovals.ga?.status === 'pending') {
+        currentApprovals.ga.status = 'rejected'
+        currentApprovals.ga.note = reason || 'Pengajuan dibatalkan'
+      }
+      if (currentApprovals.spv?.status === 'pending') {
+        currentApprovals.spv.status = 'rejected'
+        currentApprovals.spv.note = reason || 'Pengajuan dibatalkan'
+      }
+      if (currentApprovals.adh?.status === 'pending') {
+        currentApprovals.adh.status = 'rejected'
+        currentApprovals.adh.note = reason || 'Pengajuan dibatalkan'
+      }
+
+      const baseNote = loan.notes && loan.notes.includes('__APPROVAL_DATA__:')
+        ? loan.notes.split('__APPROVAL_DATA__:')[0].trim()
+        : (loan.notes || '').trim()
+
+      const newBaseNote = baseNote ? `${baseNote}\n${cancelNote}` : cancelNote
+      const newNotes = `${newBaseNote}\n\n__APPROVAL_DATA__:${JSON.stringify(currentApprovals)}`
+
+      const { error: updateErr } = await supabase
+        .from('loans')
+        .update({
+          status: 'rejected',
+          notes: newNotes
+        })
+        .eq('id', loanId)
+
+      if (updateErr) throw updateErr
+
+      // Kembalikan status armada menjadi available jika sebelumnya borrowed
+      const vId = vehicleId || loan.vehicle_id
+      if (vId) {
+        await supabase
+          .from('vehicles')
+          .update({ status: 'available' })
+          .eq('id', vId)
+      }
+
+      return { success: true }
+    } catch (err) {
+      console.error('Supabase cancelLoan error:', err)
+      return { success: false, error: err.message || 'Gagal membatalkan peminjaman.' }
+    }
+  },
+
   async deleteLoan(id) {
     const supabase = getSupabase()
     if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }

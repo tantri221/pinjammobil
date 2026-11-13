@@ -253,6 +253,18 @@ export default function App() {
     }
   }
 
+  const handleCancelLoan = async (loanId, vehicleId, reason) => {
+    const res = await api.cancelLoan(loanId, vehicleId, currentUser, reason)
+    if (res.success) {
+      showToast('Pengajuan peminjaman berhasil dibatalkan.')
+      loadData()
+      return { success: true }
+    } else {
+      showToast(res.error || 'Gagal membatalkan pengajuan peminjaman.', 'error')
+      return { success: false, error: res.error }
+    }
+  }
+
   const handleUpdateApproval = async (loanId, stage, action, approverUser, note) => {
     const res = await api.updateLoanApproval(loanId, stage, action, approverUser, note)
     if (res.success) {
@@ -413,6 +425,7 @@ export default function App() {
               currentUser={currentUser}
               onReturnVehicle={handleReturnVehicle}
               onDeleteLoan={handleDeleteLoan}
+              onCancelLoan={handleCancelLoan}
             />
           )}
 
