@@ -1,10 +1,6 @@
 import React, { useState } from 'react'
-import { CheckCircle2, Clock, MapPin, Check, CornerDownLeft, Trash2 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from './ui/Card'
-import { Badge } from './ui/Badge'
-import { Button } from './ui/Button'
+import { Clock, MapPin, Check, CornerDownLeft, Trash2 } from 'lucide-react'
 import { Modal } from './ui/Modal'
-import { Input } from './ui/Input'
 
 export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = null, onReturnVehicle, onDeleteLoan }) {
   const [returningLoan, setReturningLoan] = useState(null)
@@ -46,137 +42,136 @@ export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = nu
 
   return (
     <>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        {/* Table Header Info */}
+        <div className="p-5 flex flex-row items-center justify-between border-b border-slate-100">
           <div>
-            <CardTitle className="text-base font-bold text-zinc-900">
-              Histori & Status Peminjaman
-            </CardTitle>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Daftar transaksi peminjaman kendaraan yang aktif maupun selesai
+            <h3 className="text-base font-bold text-slate-800">
+              Histori & Status Peminjaman Kendaraan
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Daftar seluruh transaksi peminjaman unit operasional
             </p>
           </div>
-          <Badge variant="secondary" className="font-normal text-xs">
+          <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
             {loans.length} Transaksi
-          </Badge>
-        </CardHeader>
+          </span>
+        </div>
 
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-zinc-50 border-y border-zinc-200/80 text-zinc-500 font-semibold uppercase tracking-wider text-[10px]">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+              <tr>
+                <th className="py-3 px-4">Peminjam</th>
+                <th className="py-3 px-4">Kendaraan</th>
+                <th className="py-3 px-4">Jadwal Pinjam</th>
+                <th className="py-3 px-4">Tujuan / Keperluan</th>
+                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4 text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-slate-700">
+              {loans.length === 0 ? (
                 <tr>
-                  <th className="py-3 px-4">Peminjam</th>
-                  <th className="py-3 px-4">Kendaraan</th>
-                  <th className="py-3 px-4">Jadwal Pinjam</th>
-                  <th className="py-3 px-4">Tujuan / Keperluan</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Aksi</th>
+                  <td colSpan={6} className="py-12 text-center text-slate-400 text-xs font-medium">
+                    Belum ada data peminjaman kendaraan yang tercatat di database Supabase.
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 text-zinc-700">
-                {loans.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-8 text-center text-zinc-400 text-xs">
-                      Belum ada data peminjaman kendaraan tercatat.
-                    </td>
-                  </tr>
-                ) : (
-                  loans.map((loan) => {
-                    const isCompleted = loan.status === 'completed'
-                    return (
-                      <tr key={loan.id} className="hover:bg-zinc-50/80 transition-colors">
-                        
-                        {/* Peminjam */}
-                        <td className="py-3 px-4">
-                          <div className="font-semibold text-zinc-900">{loan.borrower_name}</div>
-                          <div className="text-[11px] text-zinc-400">{loan.division}</div>
-                        </td>
+              ) : (
+                loans.map((loan) => {
+                  const isCompleted = loan.status === 'completed'
+                  return (
+                    <tr key={loan.id} className="hover:bg-slate-50/80 transition-colors">
+                      
+                      {/* Peminjam */}
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-slate-900">{loan.borrower_name}</div>
+                        <div className="text-[11px] text-slate-500">Divisi {loan.division}</div>
+                      </td>
 
-                        {/* Unit */}
-                        <td className="py-3 px-4">
-                          <div className="font-medium text-zinc-900">{loan.vehicle_name || 'Unit Mobil'}</div>
-                          <div className="font-mono text-[10px] text-zinc-500">{loan.license_plate || '-'}</div>
-                        </td>
+                      {/* Unit */}
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-slate-900">{loan.vehicle_name || 'Unit Mobil'}</div>
+                        <div className="font-mono text-[11px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded max-w-fit mt-0.5 border border-slate-200">
+                          {loan.license_plate || '-'}
+                        </div>
+                      </td>
 
-                        {/* Jadwal */}
-                        <td className="py-3 px-4 space-y-0.5">
-                          <div className="flex items-center gap-1 text-zinc-600">
-                            <span className="text-[10px] font-medium text-zinc-400">Mulai:</span>
-                            <span>{formatDate(loan.start_date)}</span>
-                          </div>
-                          <div className="flex items-center gap-1 text-zinc-600">
-                            <span className="text-[10px] font-medium text-zinc-400">Selesai:</span>
-                            <span>{formatDate(loan.end_date)}</span>
-                          </div>
-                        </td>
+                      {/* Jadwal */}
+                      <td className="py-3.5 px-4 space-y-0.5">
+                        <div className="flex items-center gap-1 text-slate-600">
+                          <span className="text-[10px] font-bold text-slate-400">Mulai:</span>
+                          <span>{formatDate(loan.start_date)}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-slate-600">
+                          <span className="text-[10px] font-bold text-slate-400">Kembali:</span>
+                          <span>{formatDate(loan.end_date)}</span>
+                        </div>
+                      </td>
 
-                        {/* Keperluan */}
-                        <td className="py-3 px-4 max-w-xs">
-                          <div className="font-medium text-zinc-800 truncate" title={loan.purpose}>
-                            {loan.purpose}
-                          </div>
-                          <div className="flex items-center gap-1 text-[11px] text-zinc-400 truncate" title={loan.destination}>
-                            <MapPin className="h-3 w-3 shrink-0" />
-                            {loan.destination}
-                          </div>
-                        </td>
+                      {/* Keperluan */}
+                      <td className="py-3.5 px-4 max-w-xs">
+                        <div className="font-semibold text-slate-800 truncate" title={loan.purpose}>
+                          {loan.purpose}
+                        </div>
+                        <div className="flex items-center gap-1 text-[11px] text-slate-500 truncate mt-0.5" title={loan.destination}>
+                          <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                          <span>{loan.destination}</span>
+                        </div>
+                      </td>
 
-                        {/* Status */}
-                        <td className="py-3 px-4">
-                          {isCompleted ? (
-                            <Badge variant="outline" className="text-zinc-500 border-zinc-200">
-                              <Check className="h-3 w-3 mr-1 text-emerald-600" /> Selesai
-                            </Badge>
+                      {/* Status */}
+                      <td className="py-3.5 px-4">
+                        {isCompleted ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <Check className="h-3 w-3 text-emerald-600" /> Selesai
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                            <Clock className="h-3 w-3 text-amber-600" /> Sedang Dipinjam
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Aksi */}
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {!isCompleted ? (
+                            <button
+                              onClick={() => handleOpenReturn(loan)}
+                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white shadow-xs transition flex items-center gap-1 cursor-pointer"
+                            >
+                              <CornerDownLeft className="h-3 w-3" />
+                              <span>Kembalikan</span>
+                            </button>
                           ) : (
-                            <Badge variant="warning">
-                              <Clock className="h-3 w-3 mr-1" /> Sedang Dipinjam
-                            </Badge>
+                            <span className="text-[11px] font-mono text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-200">
+                              {loan.end_mileage ? `${loan.end_mileage.toLocaleString()} KM` : '-'}
+                            </span>
                           )}
-                        </td>
 
-                        {/* Aksi */}
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            {!isCompleted ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleOpenReturn(loan)}
-                                className="text-xs h-7 gap-1"
-                              >
-                                <CornerDownLeft className="h-3 w-3" />
-                                Kembalikan
-                              </Button>
-                            ) : (
-                              <span className="text-[11px] text-zinc-400">
-                                {loan.end_mileage ? `${loan.end_mileage.toLocaleString()} KM` : '-'}
-                              </span>
-                            )}
+                          {isAdmin && (
+                            <button
+                              onClick={() => onDeleteLoan(loan)}
+                              className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                              title="Hapus transaksi ini (Admin)"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
 
-                            {isAdmin && (
-                              <button
-                                onClick={() => onDeleteLoan(loan)}
-                                className="p-1 text-zinc-300 hover:text-rose-600 rounded transition-colors cursor-pointer"
-                                title="Hapus riwayat pinjaman ini (Admin)"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Modal Pengembalian Mobil */}
+      {/* Modal Pengembalian Mobil (Style Legacy) */}
       <Modal
         isOpen={Boolean(returningLoan)}
         onClose={() => setReturningLoan(null)}
@@ -185,45 +180,55 @@ export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = nu
       >
         {returningLoan && (
           <form onSubmit={handleConfirmReturn} className="space-y-4 text-xs sm:text-sm">
-            <div className="p-3 rounded-lg bg-zinc-50 border border-zinc-200 space-y-1 text-xs">
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 text-xs">
               <div className="flex justify-between">
-                <span className="text-zinc-500">Peminjam:</span>
-                <span className="font-semibold text-zinc-800">{returningLoan.borrower_name} ({returningLoan.division})</span>
+                <span className="text-slate-500 font-medium">Peminjam:</span>
+                <span className="font-bold text-slate-800">{returningLoan.borrower_name} ({returningLoan.division})</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-zinc-500">Unit:</span>
-                <span className="font-semibold text-zinc-800">{returningLoan.vehicle_name} - {returningLoan.license_plate}</span>
+                <span className="text-slate-500 font-medium">Unit:</span>
+                <span className="font-bold text-slate-800">{returningLoan.vehicle_name} - {returningLoan.license_plate}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-zinc-500">KM Saat Berangkat:</span>
-                <span className="font-mono font-medium text-zinc-700">{(returningLoan.start_mileage || 0).toLocaleString()} KM</span>
+                <span className="text-slate-500 font-medium">KM Saat Berangkat:</span>
+                <span className="font-mono font-bold text-sky-700">{(returningLoan.start_mileage || 0).toLocaleString()} KM</span>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-zinc-700 mb-1">
+              <label className="block text-xs font-bold text-slate-700 mb-1">
                 KM Akhir Speedometer <span className="text-red-500">*</span>
               </label>
-              <Input
+              <input
                 type="number"
                 required
                 min={returningLoan.start_mileage || 0}
                 placeholder="Masukkan angka KM terkini di dashboard mobil"
                 value={endMileage}
                 onChange={e => setEndMileage(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-sky-500 outline-none"
               />
-              <p className="text-[11px] text-zinc-400 mt-1">
-                Angka ini akan memperbarui status total jarak tempuh armada di sistem.
+              <p className="text-[11px] text-slate-400 mt-1">
+                Angka odometer ini akan otomatis memperbarui jarak tempuh armada di Supabase.
               </p>
             </div>
 
-            <div className="pt-3 border-t border-zinc-100 flex items-center justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setReturningLoan(null)} disabled={isSubmitting}>
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button 
+                type="button" 
+                onClick={() => setReturningLoan(null)} 
+                disabled={isSubmitting}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
+              >
                 Batal
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Menyimpan...' : 'Selesaikan Peminjaman'}
-              </Button>
+              </button>
+              <button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition cursor-pointer"
+              >
+                {isSubmitting ? 'Menyimpan...' : 'Selesaikan Pengembalian'}
+              </button>
             </div>
           </form>
         )}

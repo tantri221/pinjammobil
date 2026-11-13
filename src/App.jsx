@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Navbar } from './components/Navbar'
-import { StatsCards } from './components/StatsCards'
+import { Sidebar } from './components/Sidebar'
 import { VehicleGrid } from './components/VehicleGrid'
 import { LoanHistoryTable } from './components/LoanHistoryTable'
 import { LoanFormModal } from './components/LoanFormModal'
@@ -9,7 +8,7 @@ import { SupabaseSettingsModal } from './components/SupabaseSettingsModal'
 import { UserManagementModal } from './components/UserManagementModal'
 import { LoginPage } from './components/LoginPage'
 import { api } from './services/api'
-import { Car, Clock, CheckCircle2, AlertCircle, AlertTriangle, ExternalLink, RefreshCw } from 'lucide-react'
+import { Car, AlertTriangle, RefreshCw, Plus, Layers, Clock } from 'lucide-react'
 
 const AUTH_USER_KEY = 'pinjammobil_auth_user'
 
@@ -30,8 +29,8 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isRegistrationAllowed, setIsRegistrationAllowed] = useState(false)
   
-  // Navigation Tabs
-  const [activeTab, setActiveTab] = useState('vehicles') // 'vehicles' | 'loans'
+  // Navigation Tabs: 'vehicles' | 'loans'
+  const [activeTab, setActiveTab] = useState('vehicles')
 
   // Modals
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false)
@@ -54,7 +53,7 @@ export default function App() {
   const isAdmin = currentUser?.role === 'admin'
 
   const loadData = useCallback(async () => {
-    if (!currentUser) return // Jangan muat data jika belum login
+    if (!currentUser) return
     setIsRefreshing(true)
     setSupabaseError(null)
     try {
@@ -110,14 +109,14 @@ export default function App() {
       setIsRegistrationAllowed(newStatus)
       showToast(newStatus ? 'Pendaftaran akun publik DIBUKA.' : 'Pendaftaran akun publik DITUTUP.')
     } else {
-      showToast(res.error || 'Gagal mengubah pengaturan registrasi.', 'error')
+      showToast(res.error || 'Gagal mengubah status pendaftaran.', 'error')
     }
   }
 
   // --- Vehicle CRUD Handlers ---
   const handleOpenAddVehicle = () => {
     if (!isAdmin) {
-      showToast('Hanya Administrator yang memiliki akses menambah armada.', 'error')
+      showToast('Hanya Administrator yang dapat menambah armada.', 'error')
       return
     }
     setEditingVehicle(null)
@@ -126,7 +125,7 @@ export default function App() {
 
   const handleOpenEditVehicle = (vehicle) => {
     if (!isAdmin) {
-      showToast('Hanya Administrator yang memiliki akses mengubah armada.', 'error')
+      showToast('Hanya Administrator yang dapat mengubah armada.', 'error')
       return
     }
     setEditingVehicle(vehicle)
@@ -154,10 +153,7 @@ export default function App() {
   }
 
   const handleDeleteVehicle = async (vehicle) => {
-    if (!isAdmin) {
-      showToast('Hanya Administrator yang memiliki akses menghapus armada.', 'error')
-      return
-    }
+    if (!isAdmin) return
     if (!window.confirm(`Yakin ingin menghapus unit "${vehicle.name} (${vehicle.license_plate})"?`)) return
     const res = await api.deleteVehicle(vehicle.id)
     if (res.success) {
@@ -195,170 +191,166 @@ export default function App() {
   }
 
   const handleDeleteLoan = async (loan) => {
-    if (!isAdmin) {
-      showToast('Hanya Administrator yang dapat menghapus transaksi.', 'error')
-      return
-    }
-    if (!window.confirm(`Hapus riwayat peminjaman untuk "${loan.borrower_name}"?`)) return
+    if (!isAdmin) return
+    if (!window.confirm(`Hapus transaksi peminjaman untuk "${loan.borrower_name}"?`)) return
     const res = await api.deleteLoan(loan.id)
     if (res.success) {
-      showToast('Riwayat peminjaman berhasil dihapus!')
+      showToast('Transaksi peminjaman berhasil dihapus!')
       loadData()
     } else {
-      showToast(res.error || 'Gagal menghapus riwayat.', 'error')
+      showToast(res.error || 'Gagal menghapus transaksi.', 'error')
     }
   }
 
-  // JIKA USER BELUM LOGIN: TAMPILKAN HALAMAN LOGIN (WAJIB LOGIN)
+  // WAJIB LOGIN DULU
   if (!currentUser) {
-    return (
-      <LoginPage 
-        onLoginSuccess={handleLoginSuccess}
-      />
-    )
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />
   }
 
-  const isConnected = !supabaseError
+  const availableCount = vehicles.filter(v => v.status === 'available').length
+  const borrowedCount = vehicles.filter(v => v.status === 'borrowed').length
 
   return (
-    <div className="min-h-screen flex flex-col bg-zinc-50 text-zinc-900 selection:bg-zinc-900 selection:text-white">
-      {/* Toast Notification */}
+    <div className="min-h-screen bg-[#f0f4f8] py-5 px-3 sm:px-6 lg:px-8 text-slate-800 font-sans selection:bg-sky-600 selection:text-white">
+      
+      {/* Toast Notification Container */}
       {toast && (
         <div className="fixed top-5 right-5 z-50 animate-in slide-in-from-top-3 duration-200">
-          <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-lg border text-xs font-medium ${
+          <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-lg border text-xs font-semibold ${
             toast.type === 'error'
               ? 'bg-rose-50 border-rose-200 text-rose-800'
-              : 'bg-zinc-900 border-zinc-800 text-white'
+              : 'bg-slate-900 border-slate-800 text-white'
           }`}>
-            {toast.type === 'error' ? (
-              <AlertCircle className="h-4 w-4 text-rose-500 shrink-0" />
-            ) : (
-              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-            )}
             <span>{toast.message}</span>
           </div>
         </div>
       )}
 
-      {/* Header / Navbar */}
-      <Navbar
-        isConnected={isConnected}
-        currentUser={currentUser}
-        onOpenAuth={() => {}}
-        onLogout={handleLogout}
-        onOpenUserManagement={() => setIsUserManagementOpen(true)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenLoanModal={() => handleOpenBorrowModal(null)}
-        onRefresh={loadData}
-        isRefreshing={isRefreshing}
-      />
-
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+      {/* Container Utama Aplikasi (2 Kolom Persis Gaya HTML Legacy) */}
+      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-6 items-start">
         
-        {/* Banner Supabase Error or Permission Issue */}
-        {supabaseError && (
-          <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-xs">
-            <div className="flex items-start gap-2.5">
-              <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+        {/* KOLOM KIRI: SIDEBAR MENU UTAMA */}
+        <Sidebar
+          currentUser={currentUser}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onOpenLoanModal={() => handleOpenBorrowModal(null)}
+          onOpenUserManagement={() => setIsUserManagementOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onLogout={handleLogout}
+          loanCount={loans.filter(l => l.status !== 'completed').length}
+          vehicleCount={vehicles.length}
+        />
+
+        {/* KOLOM KANAN: KONTEN UTAMA (75% LEBAR) */}
+        <main className="w-full lg:w-3/4 flex-1 min-w-0 space-y-6">
+          
+          {/* Header Card Konten Kanan (Identik dengan Legacy) */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/90 p-5 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <span className="font-bold">Database Supabase Mengembalikan Pesan:</span>
-                <p className="font-mono text-[11px] text-rose-800 mt-0.5 bg-rose-100/60 px-2 py-1 rounded inline-block">
-                  {supabaseError}
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-200/70">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse"></span>
+                    <span>Database Supabase Live</span>
+                  </span>
+                </div>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-800 mt-1.5">
+                  {activeTab === 'vehicles' ? 'Status Ketersediaan & Armada Mobil' : 'Histori & Transaksi Peminjaman Unit'}
+                </h1>
+                <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                  {activeTab === 'vehicles' 
+                    ? 'Daftar armada kendaraan operasional yang tersedia beserta status terkini.' 
+                    : 'Catatan seluruh transaksi peminjaman kendaraan aktif maupun selesai.'}
                 </p>
               </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={loadData}
-                disabled={isRefreshing}
-                className="px-3 py-1.5 rounded-lg border border-rose-300 bg-white hover:bg-rose-50 text-rose-800 font-semibold inline-flex items-center gap-1 cursor-pointer"
-              >
-                <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-                <span>Coba Lagi</span>
-              </button>
-            </div>
-          </div>
-        )}
 
-        {/* Stats Overview */}
-        <StatsCards vehicles={vehicles} loans={loans} />
+              {/* Quick Stat Badges (Style Legacy) */}
+              <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5 text-center shadow-xs">
+                  <div className="text-[10px] text-amber-700 font-bold uppercase tracking-wider">Sedang Dipinjam</div>
+                  <div className="text-base font-bold text-amber-600">{borrowedCount}</div>
+                </div>
 
-        {/* Main Navigation Tabs */}
-        <div className="border-b border-zinc-200 pb-0 flex items-center justify-between">
-          <div className="flex gap-6 -mb-px">
-            <button
-              onClick={() => setActiveTab('vehicles')}
-              className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
-                activeTab === 'vehicles'
-                  ? 'border-zinc-900 text-zinc-900'
-                  : 'border-transparent text-zinc-400 hover:text-zinc-600'
-              }`}
-            >
-              <Car className="h-4 w-4" />
-              <span>Katalog Armada Kendaraan ({vehicles.length})</span>
-            </button>
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-1.5 text-center shadow-xs">
+                  <div className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">Unit Tersedia</div>
+                  <div className="text-base font-bold text-emerald-600">{availableCount}</div>
+                </div>
 
-            <button
-              onClick={() => setActiveTab('loans')}
-              className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
-                activeTab === 'loans'
-                  ? 'border-zinc-900 text-zinc-900'
-                  : 'border-transparent text-zinc-400 hover:text-zinc-600'
-              }`}
-            >
-              <Clock className="h-4 w-4" />
-              <span>Histori Peminjaman</span>
-              {loans.filter(l => l.status !== 'completed').length > 0 && (
-                <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-zinc-100 text-zinc-700 font-bold border border-zinc-200">
-                  {loans.filter(l => l.status !== 'completed').length} Aktif
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-center shadow-xs">
+                  <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Total Armada</div>
+                  <div className="text-base font-bold text-slate-700">{vehicles.length}</div>
+                </div>
 
-        {/* Content Section */}
-        {activeTab === 'vehicles' ? (
-          <VehicleGrid
-            vehicles={vehicles}
-            isAdmin={isAdmin}
-            onBorrow={handleOpenBorrowModal}
-            onAddVehicle={handleOpenAddVehicle}
-            onEditVehicle={handleOpenEditVehicle}
-            onDeleteVehicle={handleDeleteVehicle}
-          />
-        ) : (
-          <LoanHistoryTable
-            loans={loans}
-            isAdmin={isAdmin}
-            currentUser={currentUser}
-            onReturnVehicle={handleReturnVehicle}
-            onDeleteLoan={handleDeleteLoan}
-          />
-        )}
-
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-zinc-200/80 bg-white py-6 text-center text-xs text-zinc-400">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>© {new Date().getFullYear()} PinjamMobil. Sistem Peminjaman Kendaraan Operasional.</p>
-          <div className="flex items-center gap-4 text-zinc-500">
-            {isAdmin && (
-              <>
-                <button onClick={() => setIsUserManagementOpen(true)} className="hover:text-zinc-900 cursor-pointer">
-                  Kelola Pengguna & Registrasi
+                <button
+                  onClick={loadData}
+                  disabled={isRefreshing}
+                  className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition shadow-xs cursor-pointer"
+                  title="Muat ulang data Supabase"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin text-sky-600' : ''}`} />
                 </button>
-                <span>•</span>
-              </>
+              </div>
+            </div>
+
+            {/* Error Banner jika ada kendala database */}
+            {supabaseError && (
+              <div className="mt-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 font-mono text-[11px]">
+                  <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />
+                  <span>{supabaseError}</span>
+                </div>
+                <button
+                  onClick={loadData}
+                  className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-semibold text-xs shrink-0 cursor-pointer"
+                >
+                  Coba Lagi
+                </button>
+              </div>
             )}
-            <button onClick={() => setIsSettingsOpen(true)} className="hover:text-zinc-900 cursor-pointer">
-              Konfigurasi Supabase
-            </button>
           </div>
-        </div>
-      </footer>
+
+          {/* TAB 1: DAFTAR ARMADA MOBIL */}
+          {activeTab === 'vehicles' && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    🚘 Daftar Kendaraan Tersedia & Status Unit
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    {availableCount} Unit Siap Pakai
+                  </span>
+                </div>
+                <div className="text-xs text-slate-500 hidden sm:block">
+                  Alur Proses: <span className="font-semibold text-sky-700">Verifikasi GA & Approval ADH</span>
+                </div>
+              </div>
+
+              <VehicleGrid
+                vehicles={vehicles}
+                isAdmin={isAdmin}
+                onBorrow={handleOpenBorrowModal}
+                onAddVehicle={handleOpenAddVehicle}
+                onEditVehicle={handleOpenEditVehicle}
+                onDeleteVehicle={handleDeleteVehicle}
+              />
+            </div>
+          )}
+
+          {/* TAB 2: HISTORI PEMINJAMAN */}
+          {activeTab === 'loans' && (
+            <LoanHistoryTable
+              loans={loans}
+              isAdmin={isAdmin}
+              currentUser={currentUser}
+              onReturnVehicle={handleReturnVehicle}
+              onDeleteLoan={handleDeleteLoan}
+            />
+          )}
+
+        </main>
+      </div>
 
       {/* Modals */}
       <LoanFormModal
@@ -393,6 +385,7 @@ export default function App() {
         onUpdateRole={(userId, role) => api.updateUserRole(userId, role)}
         onDeleteUser={(userId) => api.deleteUser(userId)}
       />
+
     </div>
   )
 }

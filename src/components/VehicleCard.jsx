@@ -1,24 +1,21 @@
 import React from 'react'
 import { Fuel, Gauge, Users, Key, Edit, Trash2 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from './ui/Card'
-import { Badge } from './ui/Badge'
-import { Button } from './ui/Button'
 
 export function VehicleCard({ vehicle, isAdmin = false, onBorrow, onEdit, onDelete }) {
   const statusConfig = {
     available: {
       label: 'Tersedia',
-      variant: 'success',
+      badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200',
       canBorrow: true
     },
     borrowed: {
       label: 'Sedang Dipinjam',
-      variant: 'warning',
+      badgeClass: 'bg-amber-100 text-amber-800 border-amber-200',
       canBorrow: false
     },
     maintenance: {
       label: 'Perawatan Unit',
-      variant: 'danger',
+      badgeClass: 'bg-rose-100 text-rose-800 border-rose-200',
       canBorrow: false
     }
   }
@@ -26,102 +23,105 @@ export function VehicleCard({ vehicle, isAdmin = false, onBorrow, onEdit, onDele
   const currentStatus = statusConfig[vehicle.status] || statusConfig.available
 
   return (
-    <Card className="flex flex-col justify-between hover:shadow-md hover:border-zinc-300 transition-all duration-200 group">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 flex flex-col justify-between hover:shadow-md hover:border-slate-300 transition-all duration-200 group">
       <div>
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-                {vehicle.type || 'MPV'}
-              </span>
-              <CardTitle className="text-base font-bold text-zinc-900 mt-0.5">
-                {vehicle.name}
-              </CardTitle>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Badge variant={currentStatus.variant}>
-                {currentStatus.label}
-              </Badge>
-              
-              {/* Quick actions for Edit / Delete (Admin Only) */}
-              {isAdmin && (
-                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => onEdit(vehicle)}
-                    className="p-1 text-zinc-400 hover:text-zinc-700 rounded hover:bg-zinc-100 transition-colors cursor-pointer"
-                    title="Edit data kendaraan (Admin)"
-                  >
-                    <Edit className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => onDelete(vehicle)}
-                    className="p-1 text-zinc-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors cursor-pointer"
-                    title="Hapus kendaraan (Admin)"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-1">
-            <span className="inline-block px-2 py-0.5 rounded font-mono font-bold text-xs bg-zinc-100 text-zinc-800 border border-zinc-200">
-              {vehicle.license_plate}
-            </span>
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-3 pb-3">
-          {/* Details specs */}
-          <div className="grid grid-cols-2 gap-2 text-xs py-2 border-y border-zinc-100">
-            <div className="flex items-center gap-1.5 text-zinc-600">
-              <Users className="h-3.5 w-3.5 text-zinc-400" />
-              <span>Kapasitas {vehicle.capacity || 7} Kursi</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-zinc-600">
-              <Gauge className="h-3.5 w-3.5 text-zinc-400" />
-              <span>{(vehicle.mileage || 0).toLocaleString()} KM</span>
-            </div>
-          </div>
-
-          {/* Fuel Level */}
+        {/* Top Header Card */}
+        <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-100">
           <div>
-            <div className="flex justify-between items-center text-[11px] text-zinc-500 mb-1">
-              <span className="flex items-center gap-1">
-                <Fuel className="h-3 w-3" /> Level BBM
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              {vehicle.type || 'MPV'}
+            </span>
+            <h3 className="text-base font-bold text-slate-800 mt-0.5 leading-snug">
+              {vehicle.name}
+            </h3>
+            <div className="mt-1">
+              <span className="inline-block px-2.5 py-0.5 rounded-md font-mono font-bold text-xs bg-slate-100 text-slate-700 border border-slate-300/80">
+                {vehicle.license_plate}
               </span>
-              <span className="font-semibold text-zinc-700">{vehicle.fuel_level ?? 100}%</span>
             </div>
-            <div className="w-full bg-zinc-100 rounded-full h-1.5 overflow-hidden">
+          </div>
+
+          <div className="flex flex-col items-end gap-1.5">
+            <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold border ${currentStatus.badgeClass}`}>
+              {currentStatus.label}
+            </span>
+
+            {/* Admin Quick Action (Edit & Delete) */}
+            {isAdmin && (
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => onEdit(vehicle)}
+                  className="p-1 rounded text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition cursor-pointer"
+                  title="Edit data kendaraan"
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => onDelete(vehicle)}
+                  className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                  title="Hapus kendaraan"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Specs & Fuel Info */}
+        <div className="py-3 space-y-2.5 text-xs text-slate-600">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-center gap-1.5 text-slate-600">
+              <Users className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+              <span>{vehicle.capacity || 7} Kursi</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-slate-600">
+              <Gauge className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+              <span className="font-mono font-medium">{(vehicle.mileage || 0).toLocaleString()} KM</span>
+            </div>
+          </div>
+
+          {/* Level BBM Bar */}
+          <div>
+            <div className="flex justify-between items-center text-[11px] text-slate-500 mb-1">
+              <span className="flex items-center gap-1 font-medium">
+                <Fuel className="h-3 w-3 text-slate-400" /> Level BBM
+              </span>
+              <span className="font-bold text-slate-700">{vehicle.fuel_level ?? 100}%</span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200/60">
               <div 
-                className={`h-full rounded-full ${
+                className={`h-full rounded-full transition-all duration-300 ${
                   (vehicle.fuel_level ?? 100) > 40 ? 'bg-emerald-500' : 'bg-amber-500'
                 }`}
                 style={{ width: `${vehicle.fuel_level ?? 100}%` }}
               />
             </div>
           </div>
-        </CardContent>
+        </div>
       </div>
 
-      <CardFooter className="pt-2">
-        <Button
-          className="w-full text-xs h-9"
-          variant={currentStatus.canBorrow ? 'default' : 'secondary'}
+      {/* Button Action */}
+      <div className="pt-2">
+        <button
           disabled={!currentStatus.canBorrow}
           onClick={() => onBorrow(vehicle)}
+          className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer ${
+            currentStatus.canBorrow
+              ? 'bg-sky-600 hover:bg-sky-700 text-white'
+              : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+          }`}
         >
           {currentStatus.canBorrow ? (
             <>
-              <Key className="h-3.5 w-3.5 mr-1.5" />
-              Pinjam Unit Ini
+              <Key className="h-3.5 w-3.5" />
+              <span>Pinjam Unit Ini</span>
             </>
           ) : (
-            'Unit Tidak Tersedia'
+            <span>Unit Tidak Tersedia</span>
           )}
-        </Button>
-      </CardFooter>
-    </Card>
+        </button>
+      </div>
+    </div>
   )
 }
