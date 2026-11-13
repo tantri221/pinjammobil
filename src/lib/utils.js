@@ -16,6 +16,15 @@ export function cn(...inputs) {
 export function isTestDriveLoan(loan, vehicle = null) {
   if (!loan && !vehicle) return false
 
+  const classification = String(
+    loan?.classification || 
+    loan?.vehicles?.classification || 
+    vehicle?.classification || 
+    ''
+  ).toLowerCase()
+
+  if (classification.includes('test drive')) return true
+
   const name = String(loan?.vehicle_name || loan?.vehicles?.name || vehicle?.name || '').toLowerCase()
   const plate = String(loan?.license_plate || loan?.vehicles?.license_plate || vehicle?.license_plate || '').toLowerCase()
   const purpose = String(loan?.purpose || '').toLowerCase()

@@ -4,9 +4,19 @@ import { Button } from './ui/Button'
 import { Input, Select } from './ui/Input'
 
 export function VehicleFormModal({ isOpen, onClose, vehicleToEdit = null, onSubmit }) {
+  const getInitialClassification = (v) => {
+    if (v?.classification) return v.classification
+    const name = (v?.name || '').toLowerCase()
+    const plate = (v?.license_plate || '').toLowerCase()
+    if (name.includes('test') || plate.includes('td')) return 'Kendaraan Test Drive'
+    if (name.includes('ast')) return 'Kendaraan AST'
+    return 'Kendaraan Oprasional / Aset'
+  }
+
   const [formData, setFormData] = useState({
     name: '',
     license_plate: '',
+    classification: 'Kendaraan Oprasional / Aset',
     type: 'MPV',
     status: 'available',
     capacity: 7,
@@ -21,6 +31,7 @@ export function VehicleFormModal({ isOpen, onClose, vehicleToEdit = null, onSubm
       setFormData({
         name: vehicleToEdit.name || '',
         license_plate: vehicleToEdit.license_plate || '',
+        classification: getInitialClassification(vehicleToEdit),
         type: vehicleToEdit.type || 'MPV',
         status: vehicleToEdit.status || 'available',
         capacity: vehicleToEdit.capacity || 7,
@@ -31,6 +42,7 @@ export function VehicleFormModal({ isOpen, onClose, vehicleToEdit = null, onSubm
       setFormData({
         name: '',
         license_plate: '',
+        classification: 'Kendaraan Oprasional / Aset',
         type: 'MPV',
         status: 'available',
         capacity: 7,
@@ -88,6 +100,24 @@ export function VehicleFormModal({ isOpen, onClose, vehicleToEdit = null, onSubm
 
           <div>
             <label className="block text-xs font-semibold text-zinc-700 mb-1">
+              Klasifikasi Kendaraan <span className="text-red-500">*</span>
+            </label>
+            <Select
+              required
+              value={formData.classification}
+              onChange={e => setFormData({ ...formData, classification: e.target.value })}
+              className="font-semibold text-slate-800"
+            >
+              <option value="Kendaraan Test Drive">Kendaraan Test Drive</option>
+              <option value="Kendaraan Oprasional / Aset">Kendaraan Oprasional / Aset</option>
+              <option value="Kendaraan AST">Kendaraan AST</option>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-zinc-700 mb-1">
               Tipe Kendaraan
             </label>
             <Select
@@ -101,9 +131,7 @@ export function VehicleFormModal({ isOpen, onClose, vehicleToEdit = null, onSubm
               <option value="Commercial">Commercial / Pick-up</option>
             </Select>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label className="block text-xs font-semibold text-zinc-700 mb-1">
               Status Unit
@@ -117,10 +145,12 @@ export function VehicleFormModal({ isOpen, onClose, vehicleToEdit = null, onSubm
               <option value="maintenance">Perawatan/Servis</option>
             </Select>
           </div>
+        </div>
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-zinc-700 mb-1">
-              Odometer (KM)
+              Odometer Terkini (KM)
             </label>
             <Input
               type="number"
@@ -132,14 +162,14 @@ export function VehicleFormModal({ isOpen, onClose, vehicleToEdit = null, onSubm
 
           <div>
             <label className="block text-xs font-semibold text-zinc-700 mb-1">
-              Level BBM (%)
+              Kapasitas Penumpang (Kursi)
             </label>
             <Input
               type="number"
-              min="0"
-              max="100"
-              value={formData.fuel_level}
-              onChange={e => setFormData({ ...formData, fuel_level: e.target.value })}
+              min="1"
+              max="20"
+              value={formData.capacity}
+              onChange={e => setFormData({ ...formData, capacity: e.target.value })}
             />
           </div>
         </div>

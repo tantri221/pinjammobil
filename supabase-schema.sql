@@ -9,12 +9,16 @@ CREATE TABLE IF NOT EXISTS public.vehicles (
     name VARCHAR(100) NOT NULL,
     license_plate VARCHAR(20) NOT NULL UNIQUE,
     type VARCHAR(50) NOT NULL,
+    classification VARCHAR(50) DEFAULT 'Kendaraan Oprasional / Aset',
     status VARCHAR(20) DEFAULT 'available' CHECK (status IN ('available', 'borrowed', 'maintenance')),
     capacity INT DEFAULT 7,
     fuel_level INT DEFAULT 100,
     mileage INT DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migrasi tambahan untuk tabel vehicles jika kolom classification belum ada
+ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS classification VARCHAR(50) DEFAULT 'Kendaraan Oprasional / Aset';
 
 -- 2. Buat Tabel Peminjaman (loans)
 CREATE TABLE IF NOT EXISTS public.loans (

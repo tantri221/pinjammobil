@@ -20,7 +20,19 @@ export const api = {
         .order('id', { ascending: true })
 
       if (error) throw error
-      return { data: data || [], error: null }
+
+      const formatted = (data || []).map(v => ({
+        ...v,
+        classification: v.classification || (
+          (v.name?.toLowerCase().includes('test') || v.license_plate?.toLowerCase().includes('td'))
+            ? 'Kendaraan Test Drive'
+            : v.name?.toLowerCase().includes('ast')
+            ? 'Kendaraan AST'
+            : 'Kendaraan Oprasional / Aset'
+        )
+      }))
+
+      return { data: formatted, error: null }
     } catch (err) {
       console.error('Supabase getVehicles error:', err)
       return { data: [], error: err.message || 'Gagal memuat kendaraan.' }
@@ -32,18 +44,28 @@ export const api = {
     if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }
 
     try {
-      const { data, error } = await supabase
+      const payload = {
+        name: vehicleData.name,
+        license_plate: vehicleData.license_plate,
+        type: vehicleData.type || 'MPV',
+        classification: vehicleData.classification || 'Kendaraan Oprasional / Aset',
+        status: vehicleData.status || 'available',
+        capacity: Number(vehicleData.capacity) || 7,
+        fuel_level: Number(vehicleData.fuel_level) || 100,
+        mileage: Number(vehicleData.mileage) || 0
+      }
+
+      let { data, error } = await supabase
         .from('vehicles')
-        .insert([{
-          name: vehicleData.name,
-          license_plate: vehicleData.license_plate,
-          type: vehicleData.type || 'MPV',
-          status: vehicleData.status || 'available',
-          capacity: Number(vehicleData.capacity) || 7,
-          fuel_level: Number(vehicleData.fuel_level) || 100,
-          mileage: Number(vehicleData.mileage) || 0
-        }])
+        .insert([payload])
         .select()
+
+      if (error && (error.code === '42703' || String(error.message).includes('classification'))) {
+        delete payload.classification
+        const retry = await supabase.from('vehicles').insert([payload]).select()
+        data = retry.data
+        error = retry.error
+      }
 
       if (error) throw error
       return { success: true, data: data[0] }
@@ -58,11 +80,23 @@ export const api = {
     if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }
 
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('vehicles')
         .update(updates)
         .eq('id', id)
         .select()
+
+      if (error && (error.code === '42703' || String(error.message).includes('classification'))) {
+        const fallbackUpdates = { ...updates }
+        delete fallbackUpdates.classification
+        const retry = await supabase
+          .from('vehicles')
+          .update(fallbackUpdates)
+          .eq('id', id)
+          .select()
+        data = retry.data
+        error = retry.error
+      }
 
       if (error) throw error
       return { success: true, data: data[0] }

@@ -34,10 +34,21 @@ export function VehicleCard({ vehicle, isAdmin = false, onBorrow, onEdit, onDele
             <h3 className="text-base font-bold text-slate-800 mt-0.5 leading-snug">
               {vehicle.name}
             </h3>
-            <div className="mt-1">
+            <div className="flex flex-wrap items-center gap-1.5 mt-1">
               <span className="inline-block px-2.5 py-0.5 rounded-md font-mono font-bold text-xs bg-slate-100 text-slate-700 border border-slate-300/80">
                 {vehicle.license_plate}
               </span>
+              {vehicle.classification && (
+                <span className={`inline-block px-2 py-0.5 rounded-md font-bold text-[10px] border ${
+                  vehicle.classification === 'Kendaraan Test Drive'
+                    ? 'bg-teal-50 text-teal-700 border-teal-200'
+                    : vehicle.classification === 'Kendaraan AST'
+                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                    : 'bg-slate-100 text-slate-700 border-slate-200'
+                }`}>
+                  {vehicle.classification}
+                </span>
+              )}
             </div>
           </div>
 
