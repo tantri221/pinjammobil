@@ -8,9 +8,10 @@ import {
   Users, 
   Database, 
   LogOut, 
-  ChevronRight,
-  ShieldCheck,
-  CheckSquare
+  ChevronRight, 
+  ShieldCheck, 
+  CheckSquare,
+  KeyRound
 } from 'lucide-react'
 
 export function Sidebar({
@@ -18,6 +19,7 @@ export function Sidebar({
   activeTab,
   setActiveTab,
   onOpenLoanModal,
+  onOpenSecurityCodes,
   onOpenUserManagement,
   onOpenSettings,
   onLogout,
@@ -196,10 +198,26 @@ export function Sidebar({
 
           {/* Menu Khusus Admin IT */}
           {isAdmin && (
-            <div className="pt-2">
-              <div className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-indigo-300">
+            <div className="pt-2 space-y-1.5">
+              <div className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-indigo-300">
                 Menu Administrator
               </div>
+
+              {/* Kelola Kode Security (6 Petugas / Pos) */}
+              <button
+                type="button"
+                onClick={onOpenSecurityCodes}
+                className="w-full text-left px-3.5 py-2.5 rounded-xl font-semibold transition text-emerald-200 bg-emerald-950/40 border border-emerald-800/60 hover:bg-emerald-900/60 hover:text-white flex items-center justify-between cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <KeyRound className="h-4 w-4 text-emerald-400" />
+                  <span>Kelola Kode Security</span>
+                </div>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-mono">
+                  6 Pos
+                </span>
+              </button>
+
               <button
                 type="button"
                 onClick={onOpenUserManagement}

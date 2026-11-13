@@ -752,6 +752,70 @@ export const api = {
     }
   },
 
+  async getSecurityCodes() {
+    const defaultCodes = [
+      { id: 1, slot: 'Security 1', name: 'Petugas Security 1', code: '1111', shift: 'Shift Pagi (07:00 - 15:00)', isActive: true },
+      { id: 2, slot: 'Security 2', name: 'Petugas Security 2', code: '2222', shift: 'Shift Pagi (07:00 - 15:00)', isActive: true },
+      { id: 3, slot: 'Security 3', name: 'Petugas Security 3', code: '3333', shift: 'Shift Sore (15:00 - 23:00)', isActive: true },
+      { id: 4, slot: 'Security 4', name: 'Petugas Security 4', code: '4444', shift: 'Shift Sore (15:00 - 23:00)', isActive: true },
+      { id: 5, slot: 'Security 5', name: 'Petugas Security 5', code: '5555', shift: 'Shift Malam (23:00 - 07:00)', isActive: true },
+      { id: 6, slot: 'Security 6', name: 'Petugas Security 6', code: '6666', shift: 'Shift Malam (23:00 - 07:00)', isActive: true },
+    ]
+
+    const supabase = getSupabase()
+    try {
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'security_codes')
+          .single()
+
+        if (!error && data?.value) {
+          const parsed = JSON.parse(data.value)
+          if (Array.isArray(parsed) && parsed.length === 6) {
+            localStorage.setItem('pinjammobil_security_codes', JSON.stringify(parsed))
+            return parsed
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Gagal membaca security_codes dari Supabase:', err)
+    }
+
+    try {
+      const saved = localStorage.getItem('pinjammobil_security_codes')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length === 6) return parsed
+      }
+    } catch (e) {}
+
+    return defaultCodes
+  },
+
+  async saveSecurityCodes(codes) {
+    const supabase = getSupabase()
+    try {
+      localStorage.setItem('pinjammobil_security_codes', JSON.stringify(codes))
+
+      if (supabase) {
+        await supabase
+          .from('app_settings')
+          .upsert({
+            key: 'security_codes',
+            value: JSON.stringify(codes),
+            updated_at: new Date().toISOString()
+          })
+      }
+
+      return { success: true, data: codes }
+    } catch (err) {
+      console.error('saveSecurityCodes error:', err)
+      return { success: false, error: err.message }
+    }
+  },
+
   async login(identifier, password) {
     const supabase = getSupabase()
     if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }

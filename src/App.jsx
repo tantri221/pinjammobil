@@ -8,6 +8,7 @@ import { LoanFormModal } from './components/LoanFormModal'
 import { VehicleFormModal } from './components/VehicleFormModal'
 import { SupabaseSettingsModal } from './components/SupabaseSettingsModal'
 import { UserManagementModal } from './components/UserManagementModal'
+import { SecurityCodesModal } from './components/SecurityCodesModal'
 import { LoginPage } from './components/LoginPage'
 import { api } from './services/api'
 import { Car, AlertTriangle, RefreshCw, Plus, Layers, Clock } from 'lucide-react'
@@ -43,6 +44,8 @@ export default function App() {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false)
+  const [isSecurityCodesOpen, setIsSecurityCodesOpen] = useState(false)
+  const [securityCodes, setSecurityCodes] = useState([])
 
   // Toast
   const [toast, setToast] = useState(null)
@@ -61,13 +64,17 @@ export default function App() {
     setIsRefreshing(true)
     setSupabaseError(null)
     try {
-      const [vRes, lRes, regStatus] = await Promise.all([
+      const [vRes, lRes, regStatus, secCodes] = await Promise.all([
         api.getVehicles(),
         api.getLoans(),
-        api.getRegistrationStatus()
+        api.getRegistrationStatus(),
+        api.getSecurityCodes()
       ])
 
       setIsRegistrationAllowed(regStatus)
+      if (Array.isArray(secCodes)) {
+        setSecurityCodes(secCodes)
+      }
 
       if (vRes.error) {
         setSupabaseError(vRes.error)
@@ -340,6 +347,7 @@ export default function App() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           onOpenLoanModal={() => handleOpenBorrowModal(null)}
+          onOpenSecurityCodes={() => setIsSecurityCodesOpen(true)}
           onOpenUserManagement={() => setIsUserManagementOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onLogout={handleLogout}
@@ -476,6 +484,7 @@ export default function App() {
             <SecurityCheck
               loans={loans}
               currentUser={currentUser}
+              securityCodes={securityCodes}
               onGateOut={handleSecurityGateOut}
               onGateIn={handleSecurityGateIn}
               onRefresh={loadData}
@@ -518,6 +527,12 @@ export default function App() {
         onCreateUser={handleCreateUser}
         onUpdateUser={handleUpdateUser}
         onDeleteUser={handleDeleteUser}
+      />
+
+      <SecurityCodesModal
+        isOpen={isSecurityCodesOpen}
+        onClose={() => setIsSecurityCodesOpen(false)}
+        onSaved={loadData}
       />
 
     </div>
