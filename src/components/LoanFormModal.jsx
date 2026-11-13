@@ -8,7 +8,7 @@ export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVeh
     borrower_name: '',
     division: 'Sales',
     vehicle_id: '',
-    purpose: 'Kunjungan Klien / Sales Call',
+    purpose: 'Test Drive Pelanggan',
     destination: '',
     start_date: '',
     end_date: '',
@@ -150,18 +150,20 @@ export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVeh
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-zinc-700 mb-1">
-              Peruntukan
+              Peruntukan Peminjaman <span className="text-red-500">*</span>
             </label>
             <Select
+              required
               value={formData.purpose}
               onChange={e => setFormData({ ...formData, purpose: e.target.value })}
             >
-              <option value="Kunjungan Klien / Sales Call">Kunjungan Klien / Sales Call</option>
-              <option value="Test Drive Konsumen">Test Drive Konsumen</option>
-              <option value="Operasional Kantor / Lapangan">Operasional Kantor / Lapangan</option>
-              <option value="Antar Jemput Dokumen / Tamu">Antar Jemput Dokumen / Tamu</option>
-              <option value="Servis & Perawatan Rutin">Servis & Perawatan Rutin</option>
-              <option value="Lainnya">Lainnya</option>
+              <option value="Test Drive Pelanggan">Test Drive Pelanggan</option>
+              <option value="Movex">Movex</option>
+              <option value="Emergency Servis">Emergency Servis</option>
+              <option value="Antar Sparepart">Antar Sparepart</option>
+              <option value="Kirim Faktur / BPKB/ Dokumen lainnya">Kirim Faktur / BPKB/ Dokumen lainnya</option>
+              <option value="Oprasional ke Bank">Oprasional ke Bank</option>
+              <option value="Lain-lain / Khusus">Lain-lain / Khusus</option>
             </Select>
           </div>
 
