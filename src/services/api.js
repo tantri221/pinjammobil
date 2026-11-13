@@ -1,6 +1,10 @@
 import { getSupabase } from '../lib/supabase'
+import { isTestDriveLoan } from '../lib/utils'
 
 export const api = {
+  isTestDriveUnit(loan, vehicle = null) {
+    return isTestDriveLoan(loan, vehicle)
+  },
   // ==========================================
   // 1. VEHICLES CRUD
   // ==========================================
@@ -91,9 +95,13 @@ export const api = {
   // ==========================================
 
   parseLoanApprovals(loan) {
+    const isTD = isTestDriveLoan(loan, loan?.vehicles)
+
     let approvalData = {
-      spv: { status: 'pending', by: null, at: null, note: '' },
       ga: { status: 'pending', by: null, at: null, note: '' },
+      spv: isTD 
+        ? { status: 'pending', by: null, at: null, note: '' }
+        : { status: 'not_required', by: 'Sistem', at: null, note: 'Khusus Armada Test Drive (Dilewati)' },
       adh: { status: 'pending', by: null, at: null, note: '' }
     }
 
@@ -118,9 +126,19 @@ export const api = {
       }
     }
 
+    // Jika BUKAN unit Test Drive, pastikan status SPV adalah not_required jika masih pending
+    if (!isTD && (!approvalData.spv || approvalData.spv.status === 'pending')) {
+      approvalData.spv = {
+        status: 'not_required',
+        by: 'Sistem',
+        at: null,
+        note: 'Khusus Armada Test Drive (Dilewati)'
+      }
+    }
+
     if (loan.status === 'completed' || loan.status === 'approved') {
-      if (approvalData.spv.status === 'pending') approvalData.spv.status = 'approved'
       if (approvalData.ga.status === 'pending') approvalData.ga.status = 'approved'
+      if (isTD && approvalData.spv?.status === 'pending') approvalData.spv.status = 'approved'
       if (approvalData.adh.status === 'pending') approvalData.adh.status = 'approved'
     }
 
@@ -134,7 +152,7 @@ export const api = {
     try {
       const { data, error } = await supabase
         .from('loans')
-        .select('*, vehicles(name, license_plate)')
+        .select('*, vehicles(name, license_plate, type)')
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -154,10 +172,14 @@ export const api = {
           .replace(/\[Beli BBM:\s*[^\]]+\]/gi, '')
           .trim()
 
+        const isTD = isTestDriveLoan(item, item.vehicles)
+
         return {
           ...item,
           vehicle_name: item.vehicles?.name || item.vehicle_name,
           license_plate: item.vehicles?.license_plate || item.license_plate,
+          vehicle_type: item.vehicles?.type || item.vehicle_type,
+          is_test_drive: isTD,
           start_fuel,
           buy_fuel,
           fuel_amount,
@@ -178,9 +200,32 @@ export const api = {
     if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }
 
     try {
+      // Periksa apakah armada adalah unit TEST DRIVE
+      let isTD = isTestDriveLoan(loanData)
+      if (!isTD && loanData.vehicle_id) {
+        try {
+          const { data: vData } = await supabase
+            .from('vehicles')
+            .select('name, license_plate, type')
+            .eq('id', loanData.vehicle_id)
+            .single()
+          if (vData && isTestDriveLoan(null, vData)) {
+            isTD = true
+          }
+        } catch (vErr) {
+          console.warn('Gagal cek status test drive kendaraan:', vErr)
+        }
+      }
+
+      // Alur otorisasi berjenjang:
+      // 1. Verifikasi GA: semua armada
+      // 2. Persetujuan SPV: khusus unit TEST DRIVE (untuk non-test drive otomatis not_required)
+      // 3. Persetujuan ADH: semua unit
       const initialApprovals = {
-        spv: { status: 'pending', by: null, at: null, note: '' },
         ga: { status: 'pending', by: null, at: null, note: '' },
+        spv: isTD
+          ? { status: 'pending', by: null, at: null, note: '' }
+          : { status: 'not_required', by: 'Sistem', at: new Date().toISOString(), note: 'Khusus Armada Test Drive (Dilewati)' },
         adh: { status: 'pending', by: null, at: null, note: '' }
       }
 
@@ -241,7 +286,7 @@ export const api = {
     try {
       const { data: loan, error: fetchErr } = await supabase
         .from('loans')
-        .select('*')
+        .select('*, vehicles(name, license_plate, type)')
         .eq('id', loanId)
         .single()
 
@@ -249,6 +294,7 @@ export const api = {
         return { success: false, error: 'Data peminjaman tidak ditemukan.' }
       }
 
+      const isTD = isTestDriveLoan(loan, loan.vehicles)
       const currentApprovals = this.parseLoanApprovals(loan)
       currentApprovals[stage] = {
         status: action,
@@ -259,16 +305,20 @@ export const api = {
       }
 
       // Hitung status keseluruhan
+      // Aturan alur:
+      // - Verifikasi GA untuk semua armada
+      // - Persetujuan SPV khusus untuk armada/unit TEST DRIVE
+      // - Persetujuan ADH untuk semua armada
       let newOverallStatus = 'pending'
       if (
-        currentApprovals.spv?.status === 'rejected' ||
         currentApprovals.ga?.status === 'rejected' ||
+        (isTD && currentApprovals.spv?.status === 'rejected') ||
         currentApprovals.adh?.status === 'rejected'
       ) {
         newOverallStatus = 'rejected'
       } else if (
-        currentApprovals.spv?.status === 'approved' &&
         currentApprovals.ga?.status === 'approved' &&
+        (!isTD || currentApprovals.spv?.status === 'approved' || currentApprovals.spv?.status === 'not_required') &&
         currentApprovals.adh?.status === 'approved'
       ) {
         newOverallStatus = 'approved'

@@ -5,15 +5,12 @@ import {
   Clock, 
   ShieldCheck, 
   AlertCircle, 
-  Filter, 
   Search, 
   Car, 
-  User, 
   Calendar, 
   MapPin, 
   Check, 
   X, 
-  ChevronRight, 
   Info,
   CheckSquare,
   Wrench,
@@ -21,6 +18,7 @@ import {
   UserCheck
 } from 'lucide-react'
 import { Modal } from './ui/Modal'
+import { isTestDriveLoan } from '../lib/utils'
 
 export function ApprovalCenter({ 
   loans = [], 
@@ -51,25 +49,34 @@ export function ApprovalCenter({
   const filteredLoans = useMemo(() => {
     return loans.filter(loan => {
       const approvals = loan.approvals || {
-        spv: { status: 'pending' },
         ga: { status: 'pending' },
+        spv: { status: 'pending' },
         adh: { status: 'pending' }
       }
+      const isTD = isTestDriveLoan(loan, loan.vehicles)
 
       // Tab filter
+      // 1. GA: Semua armada
       if (activeSubTab === 'ga') {
         if (statusFilter === 'pending' && approvals.ga?.status !== 'pending') return false
         if (statusFilter === 'approved' && approvals.ga?.status !== 'approved') return false
         if (statusFilter === 'rejected' && approvals.ga?.status !== 'rejected') return false
-      } else if (activeSubTab === 'spv') {
+      } 
+      // 2. SPV: KHUSUS armada/unit TEST DRIVE
+      else if (activeSubTab === 'spv') {
+        if (!isTD) return false // Unit non-test drive tidak perlu persetujuan SPV
         if (statusFilter === 'pending' && approvals.spv?.status !== 'pending') return false
         if (statusFilter === 'approved' && approvals.spv?.status !== 'approved') return false
         if (statusFilter === 'rejected' && approvals.spv?.status !== 'rejected') return false
-      } else if (activeSubTab === 'adh') {
+      } 
+      // 3. ADH: Semua armada
+      else if (activeSubTab === 'adh') {
         if (statusFilter === 'pending' && approvals.adh?.status !== 'pending') return false
         if (statusFilter === 'approved' && approvals.adh?.status !== 'approved') return false
         if (statusFilter === 'rejected' && approvals.adh?.status !== 'rejected') return false
-      } else if (activeSubTab === 'all') {
+      } 
+      // 4. Semua Riwayat
+      else if (activeSubTab === 'all') {
         if (statusFilter === 'pending' && loan.status !== 'pending') return false
         if (statusFilter === 'approved' && loan.status !== 'approved' && loan.status !== 'completed') return false
         if (statusFilter === 'rejected' && loan.status !== 'rejected') return false
@@ -100,9 +107,10 @@ export function ApprovalCenter({
     let fullyApproved = 0
 
     loans.forEach(l => {
-      const app = l.approvals || { spv: {}, ga: {}, adh: {} }
+      const app = l.approvals || { ga: {}, spv: {}, adh: {} }
+      const isTD = isTestDriveLoan(l, l.vehicles)
       if (app.ga?.status === 'pending') gaPending++
-      if (app.spv?.status === 'pending') spvPending++
+      if (isTD && app.spv?.status === 'pending') spvPending++
       if (app.adh?.status === 'pending') adhPending++
       if (l.status === 'approved' || l.status === 'completed') fullyApproved++
     })
@@ -162,9 +170,9 @@ export function ApprovalCenter({
   // Check if current user has permission to approve stage
   const canApproveStage = (stage) => {
     if (isAdmin) return true
-    if (stage === 'ga' && userRole === 'ga') return true
-    if (stage === 'spv' && userRole === 'spv') return true
-    if (stage === 'adh' && userRole === 'adh') return true
+    if (stage === 'ga' && isGA) return true
+    if (stage === 'spv' && isSPV) return true
+    if (stage === 'adh' && isADH) return true
     return false
   }
 
@@ -181,6 +189,13 @@ export function ApprovalCenter({
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
           <X className="h-3 w-3 text-rose-600" /> Ditolak
+        </span>
+      )
+    }
+    if (status === 'not_required') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-700/80 text-slate-300 border border-slate-600">
+          ⏩ Tidak Diperlukan
         </span>
       )
     }
@@ -204,9 +219,8 @@ export function ApprovalCenter({
           <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
             Verifikasi & Persetujuan Peminjaman
           </h2>
-          <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
-            Pusat koordinasi 3 tahap: Verifikasi Armada oleh <strong>General Affairs (GA)</strong>, 
-            Persetujuan Atasan <strong>Supervisor (SPV)</strong>, dan Otorisasi Pimpinan <strong>Admin Head (ADH)</strong>.
+          <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl leading-relaxed">
+            Alur Berjenjang: <strong>1. Verifikasi GA</strong> (semua armada) ➔ <strong>2. Persetujuan SPV</strong> (khusus armada/unit TEST DRIVE) ➔ <strong>3. Persetujuan ADH</strong> (semua unit).
           </p>
         </div>
 
@@ -224,7 +238,7 @@ export function ApprovalCenter({
         </div>
       </div>
 
-      {/* 3 Summary Stats Cards */}
+      {/* 4 Summary Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         <button
           onClick={() => { setActiveSubTab('ga'); setStatusFilter('pending'); }}
@@ -237,7 +251,7 @@ export function ApprovalCenter({
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
               <Wrench className="h-3.5 w-3.5" />
-              <span>Verifikasi GA</span>
+              <span>1. Verifikasi GA</span>
             </span>
             <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
               {stats.gaPending} Menunggu
@@ -245,7 +259,7 @@ export function ApprovalCenter({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-slate-900">{stats.gaPending}</span>
-            <span className="text-xs text-slate-500">Unit perlu dicek GA</span>
+            <span className="text-xs text-slate-500">Semua armada dicek GA</span>
           </div>
         </button>
 
@@ -260,7 +274,7 @@ export function ApprovalCenter({
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-teal-700 flex items-center gap-1.5">
               <UserCheck className="h-3.5 w-3.5" />
-              <span>Persetujuan SPV</span>
+              <span>2. Persetujuan SPV</span>
             </span>
             <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-teal-100 text-teal-800 border border-teal-200">
               {stats.spvPending} Menunggu
@@ -268,7 +282,7 @@ export function ApprovalCenter({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-slate-900">{stats.spvPending}</span>
-            <span className="text-xs text-slate-500">Izin dinas divisi</span>
+            <span className="text-xs text-slate-500">Khusus unit TEST DRIVE</span>
           </div>
         </button>
 
@@ -283,7 +297,7 @@ export function ApprovalCenter({
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-purple-700 flex items-center gap-1.5">
               <Building className="h-3.5 w-3.5" />
-              <span>Persetujuan ADH</span>
+              <span>3. Persetujuan ADH</span>
             </span>
             <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-purple-100 text-purple-800 border border-purple-200">
               {stats.adhPending} Menunggu
@@ -291,7 +305,7 @@ export function ApprovalCenter({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-slate-900">{stats.adhPending}</span>
-            <span className="text-xs text-slate-500">Otorisasi pimpinan</span>
+            <span className="text-xs text-slate-500">Otorisasi final semua unit</span>
           </div>
         </button>
 
@@ -314,15 +328,17 @@ export function ApprovalCenter({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-slate-900">{stats.fullyApproved}</span>
-            <span className="text-xs text-slate-500">Total disetujui</span>
+            <span className="text-xs text-slate-500">Total peminjaman disetujui</span>
           </div>
         </button>
       </div>
 
-      {/* Navigasi Sub-Tab Utama (Verifikasi GA / Persetujuan SPV / Persetujuan ADH / Semua) */}
+      {/* Navigasi Sub-Tab Utama (1. GA -> 2. SPV -> 3. ADH -> Semua) */}
       <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-xs">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2 mb-3">
           <div className="flex flex-wrap items-center gap-1.5">
+            
+            {/* Tab 1: Verifikasi GA */}
             <button
               onClick={() => setActiveSubTab('ga')}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
@@ -332,7 +348,7 @@ export function ApprovalCenter({
               }`}
             >
               <Wrench className="h-3.5 w-3.5" />
-              <span>1. Verifikasi GA</span>
+              <span>1. Verifikasi GA (Semua Armada)</span>
               {stats.gaPending > 0 && (
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
                   activeSubTab === 'ga' ? 'bg-indigo-800 text-white' : 'bg-indigo-100 text-indigo-700'
@@ -342,6 +358,7 @@ export function ApprovalCenter({
               )}
             </button>
 
+            {/* Tab 2: Persetujuan SPV (Khusus Test Drive) */}
             <button
               onClick={() => setActiveSubTab('spv')}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
@@ -351,7 +368,7 @@ export function ApprovalCenter({
               }`}
             >
               <UserCheck className="h-3.5 w-3.5" />
-              <span>2. Persetujuan SPV</span>
+              <span>2. Persetujuan SPV (Khusus Test Drive)</span>
               {stats.spvPending > 0 && (
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
                   activeSubTab === 'spv' ? 'bg-teal-800 text-white' : 'bg-teal-100 text-teal-700'
@@ -361,6 +378,7 @@ export function ApprovalCenter({
               )}
             </button>
 
+            {/* Tab 3: Persetujuan ADH */}
             <button
               onClick={() => setActiveSubTab('adh')}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
@@ -370,7 +388,7 @@ export function ApprovalCenter({
               }`}
             >
               <Building className="h-3.5 w-3.5" />
-              <span>3. Persetujuan ADH</span>
+              <span>3. Persetujuan ADH (Semua Unit)</span>
               {stats.adhPending > 0 && (
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
                   activeSubTab === 'adh' ? 'bg-purple-800 text-white' : 'bg-purple-100 text-purple-700'
@@ -380,6 +398,7 @@ export function ApprovalCenter({
               )}
             </button>
 
+            {/* Tab 4: Semua Riwayat */}
             <button
               onClick={() => setActiveSubTab('all')}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
@@ -426,10 +445,10 @@ export function ApprovalCenter({
           <div className="flex items-center gap-2">
             <Info className="h-4 w-4 text-sky-600 shrink-0" />
             <span>
-              {activeSubTab === 'ga' && 'Menu Verifikasi GA: Pemeriksaan kesiapan teknis armada, verifikasi kondisi fisik unit & penanganan pembelian BBM.'}
-              {activeSubTab === 'spv' && 'Menu Persetujuan SPV: Persetujuan atasan langsung peminjam untuk urgensi & tugas dinas divisi (tidak memproses pembelian BBM).'}
-              {activeSubTab === 'adh' && 'Menu Persetujuan ADH: Otorisasi final izin pemakaian kendaraan operasional kantor oleh Administration Head.'}
-              {activeSubTab === 'all' && 'Monitoring menyeluruh status persetujuan dari ketiga tingkatan (SPV, GA, dan ADH).'}
+              {activeSubTab === 'ga' && 'Tahap 1: Verifikasi GA untuk SEMUA armada kendaraan operasional (pemeriksaan teknis armada, kelayakan fisik unit, dan verifikasi pembelian BBM).'}
+              {activeSubTab === 'spv' && 'Tahap 2: Persetujuan SPV KHUSUS untuk armada/unit TEST DRIVE. Armada operasional umum tidak memerlukan persetujuan SPV dan langsung diteruskan ke persetujuan ADH.'}
+              {activeSubTab === 'adh' && 'Tahap 3: Persetujuan ADH (Admin Head) untuk SEMUA unit sebagai otorisasi final pemakaian kendaraan kantor (setelah verifikasi GA, dan SPV jika unit Test Drive).'}
+              {activeSubTab === 'all' && 'Monitoring menyeluruh riwayat persetujuan: 1. Verifikasi GA (semua armada) ➔ 2. Persetujuan SPV (khusus Test Drive) ➔ 3. Otorisasi Final ADH (semua unit).'}
             </span>
           </div>
 
@@ -446,21 +465,30 @@ export function ApprovalCenter({
             </div>
             <div className="font-bold text-slate-700 text-sm">Tidak ada pengajuan pada tab ini</div>
             <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              Semua pengajuan telah diproses atau tidak ada data yang cocok dengan filter pencarian Anda.
+              {activeSubTab === 'spv' 
+                ? 'Semua unit Test Drive telah diproses atau saat ini belum ada pengajuan armada Test Drive.'
+                : 'Semua pengajuan telah diproses atau tidak ada data yang cocok dengan filter pencarian Anda.'}
             </p>
           </div>
         ) : (
           <div className="space-y-4">
             {filteredLoans.map(loan => {
               const approvals = loan.approvals || {
-                spv: { status: 'pending' },
                 ga: { status: 'pending' },
+                spv: { status: 'pending' },
                 adh: { status: 'pending' }
               }
 
+              const isTD = isTestDriveLoan(loan, loan.vehicles)
               const isCompleted = loan.status === 'completed'
               const isRejected = loan.status === 'rejected'
               const isFullyApproved = loan.status === 'approved' || isCompleted
+
+              // Kesiapan tahap (Sequential readiness)
+              const isGaApproved = approvals.ga?.status === 'approved'
+              const isSpvApproved = !isTD || approvals.spv?.status === 'approved' || approvals.spv?.status === 'not_required'
+              const isReadyForSpv = isGaApproved
+              const isReadyForAdh = isGaApproved && isSpvApproved
 
               return (
                 <div 
@@ -474,11 +502,20 @@ export function ApprovalCenter({
                         {loan.borrower_name?.charAt(0) || 'P'}
                       </div>
                       <div>
-                        <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                        <div className="font-bold text-slate-900 text-sm flex flex-wrap items-center gap-2">
                           <span>{loan.borrower_name}</span>
                           <span className="text-[11px] font-semibold px-2 py-0.2 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
                             Divisi {loan.division}
                           </span>
+                          {isTD ? (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-300">
+                              🏷️ Unit Test Drive (Wajib SPV)
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
+                              🚗 Operasional Umum (Bypass SPV ➔ ADH)
+                            </span>
+                          )}
                         </div>
                         <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
                           <span>ID Tiket #{loan.id}</span>
@@ -536,12 +573,12 @@ export function ApprovalCenter({
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                       <div className="text-slate-400 text-[10px] font-bold uppercase flex items-center gap-1">
                         <MapPin className="h-3.5 w-3.5 text-emerald-600" />
-                        <span>Destinasi & Tujuan</span>
+                        <span>Destinasi & Peruntukan</span>
                       </div>
                       <div className="font-bold text-slate-900 mt-1 truncate" title={loan.destination}>
                         {loan.destination || '-'}
                       </div>
-                      <div className="text-slate-500 text-[11px] truncate mt-0.5" title={loan.purpose}>
+                      <div className="text-slate-500 text-[11px] truncate mt-0.5 font-medium" title={loan.purpose}>
                         {loan.purpose}
                       </div>
                     </div>
@@ -576,45 +613,18 @@ export function ApprovalCenter({
                     </div>
                   </div>
 
-                  {/* VISUAL 3-STAGE PIPELINE (SPV -> GA -> ADH) */}
+                  {/* VISUAL 3-STAGE PIPELINE: 1. GA ➔ 2. SPV (khusus Test Drive) ➔ 3. ADH */}
                   <div className="p-3.5 rounded-xl bg-slate-900 text-white border border-slate-800 space-y-2">
                     <div className="text-[10px] font-bold tracking-wider uppercase text-slate-400 flex items-center justify-between">
-                      <span>Progres Verifikasi & Persetujuan Berjenjang</span>
-                      <span className="text-sky-400 font-mono">Tahap 1 ➔ Tahap 2 ➔ Tahap 3</span>
+                      <span>Alur Persetujuan: 1. GA (Semua) ➔ 2. SPV (Khusus Test Drive) ➔ 3. ADH (Semua)</span>
+                      <span className="text-sky-400 font-mono font-bold">
+                        {isTD ? '3 Tahap (Unit Test Drive)' : '2 Tahap (Non-Test Drive)'}
+                      </span>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
                       
-                      {/* TAHAP 1: SPV */}
-                      <div className={`p-3 rounded-lg border text-xs ${
-                        approvals.spv?.status === 'approved'
-                          ? 'bg-teal-950/40 border-teal-700/60 text-teal-200'
-                          : approvals.spv?.status === 'rejected'
-                          ? 'bg-rose-950/40 border-rose-700/60 text-rose-200'
-                          : 'bg-slate-800/80 border-slate-700 text-slate-300'
-                      }`}>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="font-bold flex items-center gap-1.5">
-                            <UserCheck className="h-3.5 w-3.5 text-teal-400" />
-                            <span>1. Persetujuan SPV</span>
-                          </span>
-                          {getStageBadge(approvals.spv)}
-                        </div>
-                        <div className="text-[11px] text-slate-300">
-                          {approvals.spv?.by ? (
-                            <>Oleh: <strong>{approvals.spv.by}</strong></>
-                          ) : (
-                            <span className="text-slate-400 italic">Menunggu persetujuan atasan</span>
-                          )}
-                        </div>
-                        {approvals.spv?.note && (
-                          <div className="mt-1 text-[10px] text-slate-400 bg-slate-950/50 p-1.5 rounded">
-                            "{approvals.spv.note}"
-                          </div>
-                        )}
-                      </div>
-
-                      {/* TAHAP 2: GA */}
+                      {/* TAHAP 1: GA (Semua Armada) */}
                       <div className={`p-3 rounded-lg border text-xs ${
                         approvals.ga?.status === 'approved'
                           ? 'bg-indigo-950/40 border-indigo-700/60 text-indigo-200'
@@ -625,7 +635,7 @@ export function ApprovalCenter({
                         <div className="flex items-center justify-between mb-1.5">
                           <span className="font-bold flex items-center gap-1.5">
                             <Wrench className="h-3.5 w-3.5 text-indigo-400" />
-                            <span>2. Verifikasi GA</span>
+                            <span>1. Verifikasi GA</span>
                           </span>
                           {getStageBadge(approvals.ga)}
                         </div>
@@ -633,7 +643,7 @@ export function ApprovalCenter({
                           {approvals.ga?.by ? (
                             <>Oleh: <strong>{approvals.ga.by}</strong></>
                           ) : (
-                            <span className="text-slate-400 italic">Menunggu cek kelayakan armada</span>
+                            <span className="text-amber-300 font-medium">Menunggu pemeriksaan kesiapan armada</span>
                           )}
                         </div>
                         {approvals.ga?.note && (
@@ -643,7 +653,55 @@ export function ApprovalCenter({
                         )}
                       </div>
 
-                      {/* TAHAP 3: ADH */}
+                      {/* TAHAP 2: SPV (Khusus Unit TEST DRIVE) */}
+                      {isTD ? (
+                        <div className={`p-3 rounded-lg border text-xs ${
+                          approvals.spv?.status === 'approved'
+                            ? 'bg-teal-950/40 border-teal-700/60 text-teal-200'
+                            : approvals.spv?.status === 'rejected'
+                            ? 'bg-rose-950/40 border-rose-700/60 text-rose-200'
+                            : 'bg-slate-800/80 border-slate-700 text-slate-300'
+                        }`}>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="font-bold flex items-center gap-1.5">
+                              <UserCheck className="h-3.5 w-3.5 text-teal-400" />
+                              <span>2. Persetujuan SPV</span>
+                            </span>
+                            {getStageBadge(approvals.spv)}
+                          </div>
+                          <div className="text-[11px] text-slate-300">
+                            {approvals.spv?.by ? (
+                              <>Oleh: <strong>{approvals.spv.by}</strong></>
+                            ) : isReadyForSpv ? (
+                              <span className="text-teal-300 font-medium">Siap diproses oleh Supervisor (SPV)</span>
+                            ) : (
+                              <span className="text-slate-400 italic">Menunggu Verifikasi GA selesai</span>
+                            )}
+                          </div>
+                          {approvals.spv?.note && (
+                            <div className="mt-1 text-[10px] text-slate-400 bg-slate-950/50 p-1.5 rounded">
+                              "{approvals.spv.note}"
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="p-3 rounded-lg border border-slate-700/70 bg-slate-800/40 text-slate-400 text-xs">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="font-bold flex items-center gap-1.5 text-slate-300">
+                              <UserCheck className="h-3.5 w-3.5 text-slate-400" />
+                              <span>2. Persetujuan SPV</span>
+                            </span>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-700/80 text-slate-300 border border-slate-600">
+                              ⏩ Tidak Diperlukan
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-slate-400">
+                            Bukan unit Test Drive. Otomatis dilewati, langsung ke otorisasi ADH.
+                          </div>
+                        </div>
+                      )}
+
+                      {/* TAHAP 3: ADH (Semua Unit) */}
                       <div className={`p-3 rounded-lg border text-xs ${
                         approvals.adh?.status === 'approved'
                           ? 'bg-purple-950/40 border-purple-700/60 text-purple-200'
@@ -661,8 +719,12 @@ export function ApprovalCenter({
                         <div className="text-[11px] text-slate-300">
                           {approvals.adh?.by ? (
                             <>Oleh: <strong>{approvals.adh.by}</strong></>
+                          ) : isReadyForAdh ? (
+                            <span className="text-purple-300 font-medium">Siap otorisasi final Admin Head (ADH)</span>
                           ) : (
-                            <span className="text-slate-400 italic">Menunggu otorisasi pimpinan</span>
+                            <span className="text-slate-400 italic">
+                              {isTD ? 'Menunggu GA & SPV disetujui' : 'Menunggu GA disetujui'}
+                            </span>
                           )}
                         </div>
                         {approvals.adh?.note && (
@@ -675,43 +737,50 @@ export function ApprovalCenter({
                     </div>
                   </div>
 
-                  {/* ACTION CONTROLS (Role & Tab Aware) */}
+                  {/* ACTION CONTROLS (Role, Sequence & Tab Aware) */}
                   <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="text-xs text-slate-500">
                       {activeSubTab === 'ga' && (
-                        <span>Tahap aktif: <strong>Pemeriksaan & Verifikasi GA</strong></span>
+                        <span>Tahap aktif: <strong>1. Verifikasi General Affairs (GA)</strong></span>
                       )}
                       {activeSubTab === 'spv' && (
-                        <span>Tahap aktif: <strong>Persetujuan Supervisor (SPV)</strong></span>
+                        <span>Tahap aktif: <strong>2. Persetujuan Supervisor (SPV - Khusus Test Drive)</strong></span>
                       )}
                       {activeSubTab === 'adh' && (
-                        <span>Tahap aktif: <strong>Otorisasi Admin Head (ADH)</strong></span>
+                        <span>Tahap aktif: <strong>3. Otorisasi Final Admin Head (ADH)</strong></span>
                       )}
                       {activeSubTab === 'all' && (
-                        <span>Pilih tombol di sebelah kanan untuk memperbarui tahap yang berwenang</span>
+                        <span>Semua status otorisasi unit peminjaman</span>
                       )}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      {/* Action buttons based on active tab or role */}
+                      
+                      {/* AKSI PADA TAB GA */}
                       {activeSubTab === 'ga' && (
                         canApproveStage('ga') ? (
-                          <>
-                            <button
-                              onClick={() => handleOpenActionModal(loan, 'ga', 'approved')}
-                              className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer"
-                            >
-                              <Check className="h-3.5 w-3.5" />
-                              <span>Verifikasi Armada (GA)</span>
-                            </button>
-                            <button
-                              onClick={() => handleOpenActionModal(loan, 'ga', 'rejected')}
-                              className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition flex items-center gap-1.5 cursor-pointer"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                              <span>Tolak (GA)</span>
-                            </button>
-                          </>
+                          approvals.ga?.status === 'pending' ? (
+                            <>
+                              <button
+                                onClick={() => handleOpenActionModal(loan, 'ga', 'approved')}
+                                className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                                <span>Verifikasi Armada (GA)</span>
+                              </button>
+                              <button
+                                onClick={() => handleOpenActionModal(loan, 'ga', 'rejected')}
+                                className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                                <span>Tolak (GA)</span>
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-[11px] font-semibold text-slate-500">
+                              Tahap GA: {approvals.ga?.status === 'approved' ? 'Telah Disetujui' : 'Telah Ditolak'}
+                            </span>
+                          )
                         ) : (
                           <span className="text-[11px] text-slate-400 italic">
                             Hanya General Affairs (GA) atau Admin yang dapat memverifikasi tahap ini
@@ -719,24 +788,39 @@ export function ApprovalCenter({
                         )
                       )}
 
+                      {/* AKSI PADA TAB SPV */}
                       {activeSubTab === 'spv' && (
-                        canApproveStage('spv') ? (
-                          <>
-                            <button
-                              onClick={() => handleOpenActionModal(loan, 'spv', 'approved')}
-                              className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer"
-                            >
-                              <Check className="h-3.5 w-3.5" />
-                              <span>Setujui Pengajuan (SPV)</span>
-                            </button>
-                            <button
-                              onClick={() => handleOpenActionModal(loan, 'spv', 'rejected')}
-                              className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition flex items-center gap-1.5 cursor-pointer"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                              <span>Tolak (SPV)</span>
-                            </button>
-                          </>
+                        !isTD ? (
+                          <span className="text-[11px] text-slate-500 font-semibold bg-slate-100 px-3 py-1.5 rounded-xl">
+                            ⏩ Unit bukan Test Drive (tidak memerlukan persetujuan SPV)
+                          </span>
+                        ) : canApproveStage('spv') ? (
+                          !isReadyForSpv && !isAdmin ? (
+                            <span className="text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
+                              ⏳ Harap menunggu Verifikasi GA selesai terlebih dahulu
+                            </span>
+                          ) : approvals.spv?.status === 'pending' ? (
+                            <>
+                              <button
+                                onClick={() => handleOpenActionModal(loan, 'spv', 'approved')}
+                                className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                                <span>Setujui Unit Test Drive (SPV)</span>
+                              </button>
+                              <button
+                                onClick={() => handleOpenActionModal(loan, 'spv', 'rejected')}
+                                className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                                <span>Tolak (SPV)</span>
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-[11px] font-semibold text-slate-500">
+                              Tahap SPV: {approvals.spv?.status === 'approved' ? 'Telah Disetujui' : 'Telah Ditolak'}
+                            </span>
+                          )
                         ) : (
                           <span className="text-[11px] text-slate-400 italic">
                             Hanya Supervisor (SPV) atau Admin yang dapat menyetujui tahap ini
@@ -744,24 +828,35 @@ export function ApprovalCenter({
                         )
                       )}
 
+                      {/* AKSI PADA TAB ADH */}
                       {activeSubTab === 'adh' && (
                         canApproveStage('adh') ? (
-                          <>
-                            <button
-                              onClick={() => handleOpenActionModal(loan, 'adh', 'approved')}
-                              className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer"
-                            >
-                              <Check className="h-3.5 w-3.5" />
-                              <span>Otorisasi Final (ADH)</span>
-                            </button>
-                            <button
-                              onClick={() => handleOpenActionModal(loan, 'adh', 'rejected')}
-                              className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition flex items-center gap-1.5 cursor-pointer"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                              <span>Tolak (ADH)</span>
-                            </button>
-                          </>
+                          !isReadyForAdh && !isAdmin ? (
+                            <span className="text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
+                              ⏳ Menunggu penyelesaian {approvals.ga?.status !== 'approved' ? 'Verifikasi GA' : ''}{isTD && approvals.spv?.status !== 'approved' ? (approvals.ga?.status !== 'approved' ? ' & ' : '') + 'Persetujuan SPV' : ''} terlebih dahulu
+                            </span>
+                          ) : approvals.adh?.status === 'pending' ? (
+                            <>
+                              <button
+                                onClick={() => handleOpenActionModal(loan, 'adh', 'approved')}
+                                className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                                <span>Otorisasi Final (ADH)</span>
+                              </button>
+                              <button
+                                onClick={() => handleOpenActionModal(loan, 'adh', 'rejected')}
+                                className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                                <span>Tolak (ADH)</span>
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-[11px] font-semibold text-slate-500">
+                              Tahap ADH: {approvals.adh?.status === 'approved' ? 'Telah Disetujui' : 'Telah Ditolak'}
+                            </span>
+                          )
                         ) : (
                           <span className="text-[11px] text-slate-400 italic">
                             Hanya Admin Head (ADH) atau Admin yang dapat mengotorisasi tahap ini
@@ -769,23 +864,23 @@ export function ApprovalCenter({
                         )
                       )}
 
-                      {/* On ALL Tab: Quick dropdown / buttons */}
+                      {/* AKSI PADA TAB SEMUA RIWAYAT */}
                       {activeSubTab === 'all' && (
-                        <div className="flex items-center gap-1.5">
-                          {canApproveStage('spv') && approvals.spv?.status === 'pending' && (
-                            <button
-                              onClick={() => handleOpenActionModal(loan, 'spv', 'approved')}
-                              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100"
-                            >
-                              Setujui SPV
-                            </button>
-                          )}
+                        <div className="flex flex-wrap items-center gap-1.5">
                           {canApproveStage('ga') && approvals.ga?.status === 'pending' && (
                             <button
                               onClick={() => handleOpenActionModal(loan, 'ga', 'approved')}
                               className="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100"
                             >
                               Verifikasi GA
+                            </button>
+                          )}
+                          {isTD && canApproveStage('spv') && approvals.spv?.status === 'pending' && (
+                            <button
+                              onClick={() => handleOpenActionModal(loan, 'spv', 'approved')}
+                              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100"
+                            >
+                              Setujui SPV (TD)
                             </button>
                           )}
                           {canApproveStage('adh') && approvals.adh?.status === 'pending' && (
@@ -798,6 +893,7 @@ export function ApprovalCenter({
                           )}
                         </div>
                       )}
+
                     </div>
                   </div>
 
@@ -818,7 +914,7 @@ export function ApprovalCenter({
             ? `✅ Konfirmasi Persetujuan (${actionStage?.toUpperCase()})` 
             : `❌ Konfirmasi Penolakan (${actionStage?.toUpperCase()})`
         }
-        description={`Proses wewenang oleh ${currentUser?.name} sebagai ${currentUser?.role?.toUpperCase()}.`}
+        description={`Proses otorisasi oleh ${currentUser?.name} sebagai ${currentUser?.role?.toUpperCase()}.`}
         maxWidth="max-w-md"
       >
         {selectedLoan && (
@@ -841,6 +937,14 @@ export function ApprovalCenter({
                 <span className="font-bold text-slate-800">{selectedLoan.vehicle_name} ({selectedLoan.license_plate})</span>
               </div>
               <div className="flex justify-between">
+                <span className="text-slate-500">Kategori Armada:</span>
+                <span className="font-bold text-slate-800">
+                  {isTestDriveLoan(selectedLoan, selectedLoan.vehicles) 
+                    ? '🏷️ Unit TEST DRIVE' 
+                    : '🚗 Unit Operasional Umum'}
+                </span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-slate-500">Destinasi:</span>
                 <span className="font-semibold text-slate-700">{selectedLoan.destination}</span>
               </div>
@@ -855,9 +959,9 @@ export function ApprovalCenter({
               <div className="flex justify-between">
                 <span className="text-slate-500">Tahap Otorisasi:</span>
                 <span className="font-bold text-sky-700">
-                  {actionStage === 'ga' && 'Verifikasi Armada (General Affairs)'}
-                  {actionStage === 'spv' && 'Persetujuan Atasan (Supervisor)'}
-                  {actionStage === 'adh' && 'Otorisasi Final (Admin Head)'}
+                  {actionStage === 'ga' && '1. Verifikasi Armada (General Affairs - GA)'}
+                  {actionStage === 'spv' && '2. Persetujuan Atasan (Supervisor - SPV)'}
+                  {actionStage === 'adh' && '3. Otorisasi Final (Admin Head - ADH)'}
                 </span>
               </div>
             </div>
@@ -874,7 +978,7 @@ export function ApprovalCenter({
                 placeholder={
                   actionType === 'approved'
                     ? 'Contoh: Armada siap jalan, kondisi baik, BBM full...'
-                    : 'Contoh: Jadwal bertabrakan dengan agenda direksi / mohon gunakan unit lain...'
+                    : 'Contoh: Jadwal bertabrakan dengan agenda customer lain / mohon reschedule...'
                 }
                 value={actionNote}
                 onChange={e => setActionNote(e.target.value)}

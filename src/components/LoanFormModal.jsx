@@ -70,7 +70,13 @@ export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVeh
 
     setIsSubmitting(true)
     try {
-      await onSubmit(formData)
+      const foundVehicle = availableVehicles.find(v => String(v.id) === String(formData.vehicle_id)) || selectedVehicle
+      await onSubmit({
+        ...formData,
+        vehicle_name: foundVehicle?.name || '',
+        license_plate: foundVehicle?.license_plate || '',
+        vehicle_type: foundVehicle?.type || ''
+      })
       onClose()
     } catch (err) {
       console.error(err)

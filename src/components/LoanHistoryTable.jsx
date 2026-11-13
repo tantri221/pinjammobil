@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Clock, MapPin, Check, CornerDownLeft, Trash2, XCircle, CheckCircle2, Car } from 'lucide-react'
 import { Modal } from './ui/Modal'
+import { isTestDriveLoan } from '../lib/utils'
 
 export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = null, onReturnVehicle, onDeleteLoan }) {
   const [returningLoan, setReturningLoan] = useState(null)
@@ -91,7 +92,18 @@ export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = nu
 
                       {/* Unit */}
                       <td className="py-3.5 px-4">
-                        <div className="font-bold text-slate-900">{loan.vehicle_name || 'Unit Mobil'}</div>
+                        <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                          <span>{loan.vehicle_name || 'Unit Mobil'}</span>
+                          {isTestDriveLoan(loan, loan.vehicles) ? (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-teal-100 text-teal-800 border border-teal-300">
+                              TEST DRIVE
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-medium px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                              OPERASIONAL
+                            </span>
+                          )}
+                        </div>
                         <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                           <span className="font-mono text-[11px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
                             {loan.license_plate || '-'}
@@ -139,9 +151,44 @@ export function LoanHistoryTable({ loans = [], isAdmin = false, currentUser = nu
                             <Check className="h-3 w-3 text-emerald-600" /> Selesai
                           </span>
                         ) : loan.status === 'pending' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                            <Clock className="h-3 w-3 text-amber-600" /> Menunggu Persetujuan
-                          </span>
+                          <div className="space-y-1">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                              <Clock className="h-3 w-3 text-amber-600" /> Menunggu Persetujuan
+                            </span>
+                            {loan.approvals && (
+                              <div className="flex items-center gap-1 text-[9px] font-bold">
+                                <span 
+                                  title="1. Verifikasi GA"
+                                  className={`px-1.5 py-0.5 rounded ${
+                                    loan.approvals.ga?.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
+                                    loan.approvals.ga?.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                  }`}
+                                >
+                                  GA {loan.approvals.ga?.status === 'approved' ? '✓' : loan.approvals.ga?.status === 'rejected' ? '✗' : '⏳'}
+                                </span>
+                                {isTestDriveLoan(loan, loan.vehicles) && (
+                                  <span 
+                                    title="2. Persetujuan SPV (Unit Test Drive)"
+                                    className={`px-1.5 py-0.5 rounded ${
+                                      loan.approvals.spv?.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
+                                      loan.approvals.spv?.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-teal-50 text-teal-700 border border-teal-200'
+                                    }`}
+                                  >
+                                    SPV {loan.approvals.spv?.status === 'approved' ? '✓' : loan.approvals.spv?.status === 'rejected' ? '✗' : '⏳'}
+                                  </span>
+                                )}
+                                <span 
+                                  title="3. Persetujuan ADH"
+                                  className={`px-1.5 py-0.5 rounded ${
+                                    loan.approvals.adh?.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
+                                    loan.approvals.adh?.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-purple-50 text-purple-700 border border-purple-200'
+                                  }`}
+                                >
+                                  ADH {loan.approvals.adh?.status === 'approved' ? '✓' : loan.approvals.adh?.status === 'rejected' ? '✗' : '⏳'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         ) : loan.status === 'rejected' ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
                             <XCircle className="h-3 w-3 text-rose-600" /> Ditolak

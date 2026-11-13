@@ -328,7 +328,7 @@ export default function App() {
                 <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                   {activeTab === 'vehicles' && 'Daftar armada kendaraan operasional yang tersedia beserta status terkini.'}
                   {activeTab === 'loans' && 'Catatan seluruh transaksi peminjaman kendaraan aktif maupun selesai.'}
-                  {activeTab === 'approvals' && 'Workflow otorisasi berjenjang oleh General Affairs (GA), Supervisor (SPV), dan Admin Head (ADH).'}
+                  {activeTab === 'approvals' && 'Alur otorisasi berjenjang: 1. Verifikasi GA (semua armada) ➔ 2. Persetujuan SPV (khusus Test Drive) ➔ 3. Persetujuan ADH (semua unit).'}
                 </p>
               </div>
 
@@ -390,7 +390,7 @@ export default function App() {
                   </span>
                 </div>
                 <div className="text-xs text-slate-500 hidden sm:block">
-                  Alur Proses: <span className="font-semibold text-sky-700">Verifikasi GA & Approval ADH</span>
+                  Alur Otorisasi: <span className="font-semibold text-sky-700">1. Verifikasi GA ➔ 2. SPV (Test Drive) ➔ 3. Otorisasi ADH</span>
                 </div>
               </div>
 
