@@ -1,7 +1,79 @@
-import React, { useState } from 'react'
-import { Clock, MapPin, Check, CornerDownLeft, Trash2, XCircle, CheckCircle2, Car, Ban, AlertCircle } from 'lucide-react'
+import React, { useState, useMemo } from 'react'
+import { 
+  Clock, 
+  MapPin, 
+  Check, 
+  CornerDownLeft, 
+  Trash2, 
+  XCircle, 
+  CheckCircle2, 
+  Car, 
+  Ban, 
+  AlertCircle,
+  Calendar,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  RotateCcw
+} from 'lucide-react'
 import { Modal } from './ui/Modal'
 import { isTestDriveLoan } from '../lib/utils'
+
+const getTodayDateString = () => {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+const addDaysToDateString = (dateStr, days) => {
+  try {
+    const parts = dateStr.split('-').map(Number)
+    const dateObj = new Date(parts[0], parts[1] - 1, parts[2])
+    dateObj.setDate(dateObj.getDate() + days)
+    const y = dateObj.getFullYear()
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0')
+    const d = String(dateObj.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  } catch {
+    return dateStr
+  }
+}
+
+const formatIndonesianDate = (dateStr) => {
+  if (!dateStr) return '-'
+  try {
+    const parts = dateStr.split('-').map(Number)
+    const d = new Date(parts[0], parts[1] - 1, parts[2])
+    return d.toLocaleDateString('id-ID', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    })
+  } catch {
+    return dateStr
+  }
+}
+
+const extractDateKey = (val) => {
+  if (!val) return null
+  try {
+    const d = new Date(val)
+    if (isNaN(d.getTime())) {
+      const match = String(val).match(/\d{4}-\d{2}-\d{2}/)
+      return match ? match[0] : null
+    }
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  } catch {
+    return null
+  }
+}
 
 export function LoanHistoryTable({ 
   loans = [], 
@@ -20,6 +92,69 @@ export function LoanHistoryTable({
   const [cancelReason, setCancelReason] = useState('')
   const [isCancelling, setIsCancelling] = useState(false)
   const [cancelError, setCancelError] = useState('')
+
+  // State Filter Harian & Tools Pilihan Tanggal
+  const [selectedDate, setSelectedDate] = useState(getTodayDateString())
+  const [filterMode, setFilterMode] = useState('daily') // 'daily' | 'all'
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const todayDate = getTodayDateString()
+  const yesterdayDate = addDaysToDateString(todayDate, -1)
+  const tomorrowDate = addDaysToDateString(todayDate, 1)
+
+  const handleNavigateDate = (delta) => {
+    setSelectedDate(prev => addDaysToDateString(prev || todayDate, delta))
+    setFilterMode('daily')
+  }
+
+  const handleSetToday = () => {
+    setSelectedDate(todayDate)
+    setFilterMode('daily')
+  }
+
+  const handleSetYesterday = () => {
+    setSelectedDate(yesterdayDate)
+    setFilterMode('daily')
+  }
+
+  const handleSetTomorrow = () => {
+    setSelectedDate(tomorrowDate)
+    setFilterMode('daily')
+  }
+
+  // Logika memeriksa apakah transaksi relevan pada tanggal target
+  const isLoanOnDate = (loan, targetDateKey) => {
+    if (!targetDateKey) return true
+    
+    const startKey = extractDateKey(loan.start_date)
+    const endKey = extractDateKey(loan.end_date)
+    const createdKey = extractDateKey(loan.created_at)
+
+    if (startKey === targetDateKey) return true
+    if (createdKey === targetDateKey) return true
+    if (startKey && endKey && startKey <= targetDateKey && targetDateKey <= endKey) {
+      return true
+    }
+    return false
+  }
+
+  const filteredLoans = useMemo(() => {
+    return loans.filter(loan => {
+      const matchesDate = filterMode === 'all' || isLoanOnDate(loan, selectedDate)
+      if (!matchesDate) return false
+
+      if (!searchQuery.trim()) return true
+      const q = searchQuery.toLowerCase()
+      return (
+        (loan.borrower_name && loan.borrower_name.toLowerCase().includes(q)) ||
+        (loan.vehicle_name && loan.vehicle_name.toLowerCase().includes(q)) ||
+        (loan.license_plate && loan.license_plate.toLowerCase().includes(q)) ||
+        (loan.division && loan.division.toLowerCase().includes(q)) ||
+        (loan.purpose && loan.purpose.toLowerCase().includes(q)) ||
+        (loan.destination && loan.destination.toLowerCase().includes(q))
+      )
+    })
+  }, [loans, filterMode, selectedDate, searchQuery])
 
   const handleOpenReturn = (loan) => {
     setReturningLoan(loan)
@@ -87,18 +222,152 @@ export function LoanHistoryTable({
   return (
     <>
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
-        {/* Header Tabel */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
-          <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Rekap Operasional
-            </span>
-            <h3 className="text-base font-bold text-slate-800">
-              Histori & Status Peminjaman Kendaraan
-            </h3>
+        {/* Header Tabel & Tools Filter Tanggal */}
+        <div className="p-4 sm:p-5 border-b border-slate-200/80 bg-slate-50/50 space-y-3.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-sky-700 bg-sky-100/80 border border-sky-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  {filterMode === 'daily' ? '📅 History Harian' : '📋 Semua Riwayat'}
+                </span>
+                <span className="text-xs text-slate-500 font-medium">
+                  {filterMode === 'daily' ? formatIndonesianDate(selectedDate) : 'Seluruh Riwayat Transaksi'}
+                </span>
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-slate-800 mt-1">
+                Histori & Status Peminjaman Kendaraan
+              </h3>
+            </div>
+            
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="text-xs font-semibold text-slate-600 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
+                {filterMode === 'daily' ? (
+                  <>
+                    Transaksi Hari Ini: <span className="font-bold text-sky-700">{filteredLoans.length}</span>
+                    <span className="text-slate-400 font-normal"> / {loans.length} total</span>
+                  </>
+                ) : (
+                  <>Total Transaksi: <span className="font-bold text-slate-800">{loans.length}</span></>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="text-xs font-semibold text-slate-500 bg-white px-3 py-1.5 rounded-xl border border-slate-200/80 shadow-2xs">
-            Total Transaksi: <span className="font-bold text-slate-800">{loans.length}</span>
+
+          {/* Tools Pemilihan Tanggal & Filter */}
+          <div className="bg-white p-3 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+            {/* Kelompok Kontrol Tanggal */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 shrink-0">
+                <CalendarDays className="h-4 w-4 text-sky-600" />
+                <span>Pilih Tanggal:</span>
+              </span>
+
+              {/* Navigasi Hari Sebelumnya / Input Tanggal / Hari Berikutnya */}
+              <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg p-0.5">
+                <button
+                  type="button"
+                  onClick={() => handleNavigateDate(-1)}
+                  className="p-1.5 rounded-md hover:bg-slate-200 text-slate-600 transition cursor-pointer"
+                  title="Hari sebelumnya"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </button>
+
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setSelectedDate(e.target.value)
+                      setFilterMode('daily')
+                    }
+                  }}
+                  className="px-2 py-1 text-xs font-bold font-mono text-slate-800 bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => handleNavigateDate(1)}
+                  className="p-1.5 rounded-md hover:bg-slate-200 text-slate-600 transition cursor-pointer"
+                  title="Hari berikutnya"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {/* Shortcut Tombol Preset */}
+              <div className="flex items-center gap-1 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleSetToday}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    filterMode === 'daily' && selectedDate === todayDate
+                      ? 'bg-sky-600 text-white shadow-xs'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
+                  title="Pilih hari ini"
+                >
+                  Hari Ini
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSetYesterday}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    filterMode === 'daily' && selectedDate === yesterdayDate
+                      ? 'bg-sky-600 text-white shadow-xs'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
+                  title="Pilih kemarin"
+                >
+                  Kemarin
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSetTomorrow}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    filterMode === 'daily' && selectedDate === tomorrowDate
+                      ? 'bg-sky-600 text-white shadow-xs'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
+                  title="Pilih besok"
+                >
+                  Besok
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterMode('all')}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    filterMode === 'all'
+                      ? 'bg-slate-800 text-white shadow-xs'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                  }`}
+                  title="Tampilkan seluruh riwayat tanpa filter tanggal"
+                >
+                  Semua Riwayat
+                </button>
+              </div>
+            </div>
+
+            {/* Pencarian Teks */}
+            <div className="relative min-w-[200px] max-w-xs w-full">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Cari peminjam / unit / plat..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-7 py-1.5 text-xs rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 text-xs"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -116,15 +385,53 @@ export function LoanHistoryTable({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-normal">
-              {loans.length === 0 ? (
+              {filteredLoans.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="py-10 text-center text-slate-400">
-                    <Clock className="h-8 w-8 mx-auto mb-2 text-slate-300 stroke-1" />
-                    Belum ada riwayat transaksi peminjaman kendaraan.
+                  <td colSpan="6" className="py-12 text-center text-slate-500">
+                    <CalendarDays className="h-10 w-10 mx-auto mb-3 text-slate-300 stroke-1" />
+                    <div className="font-bold text-slate-700 text-sm">
+                      {filterMode === 'daily' 
+                        ? `Tidak ada catatan transaksi peminjaman pada ${formatIndonesianDate(selectedDate)}`
+                        : 'Tidak ada transaksi peminjaman yang cocok dengan filter.'}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                      {filterMode === 'daily' 
+                        ? 'Gunakan navigasi tanggal di atas untuk melihat tanggal lain, atau klik "Semua Riwayat" untuk melihat seluruh catatan.'
+                        : 'Coba ubah kata kunci pencarian atau reset filter.'}
+                    </p>
+                    <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">
+                      {filterMode === 'daily' && selectedDate !== todayDate && (
+                        <button
+                          type="button"
+                          onClick={handleSetToday}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 transition cursor-pointer"
+                        >
+                          Lihat Hari Ini ({todayDate})
+                        </button>
+                      )}
+                      {filterMode === 'daily' && (
+                        <button
+                          type="button"
+                          onClick={() => setFilterMode('all')}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+                        >
+                          Tampilkan Semua Riwayat ({loans.length})
+                        </button>
+                      )}
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchQuery('')}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+                        >
+                          Hapus Kata Kunci
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
-                loans.map((loan) => {
+                filteredLoans.map((loan) => {
                   const isCompleted = loan.status === 'completed'
                   const isRejected = loan.status === 'rejected'
                   const isPending = loan.status === 'pending'
