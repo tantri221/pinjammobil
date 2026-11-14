@@ -754,12 +754,12 @@ export const api = {
 
   async getSecurityCodes() {
     const defaultCodes = [
-      { id: 1, slot: 'Security 1', name: 'Petugas Security 1', code: '1111', shift: 'Shift Pagi (07:00 - 15:00)', isActive: true },
-      { id: 2, slot: 'Security 2', name: 'Petugas Security 2', code: '2222', shift: 'Shift Pagi (07:00 - 15:00)', isActive: true },
-      { id: 3, slot: 'Security 3', name: 'Petugas Security 3', code: '3333', shift: 'Shift Sore (15:00 - 23:00)', isActive: true },
-      { id: 4, slot: 'Security 4', name: 'Petugas Security 4', code: '4444', shift: 'Shift Sore (15:00 - 23:00)', isActive: true },
-      { id: 5, slot: 'Security 5', name: 'Petugas Security 5', code: '5555', shift: 'Shift Malam (23:00 - 07:00)', isActive: true },
-      { id: 6, slot: 'Security 6', name: 'Petugas Security 6', code: '6666', shift: 'Shift Malam (23:00 - 07:00)', isActive: true },
+      { id: 1, slot: 'Security 1', name: 'Security 1', code: '1111' },
+      { id: 2, slot: 'Security 2', name: 'Security 2', code: '2222' },
+      { id: 3, slot: 'Security 3', name: 'Security 3', code: '3333' },
+      { id: 4, slot: 'Security 4', name: 'Security 4', code: '4444' },
+      { id: 5, slot: 'Security 5', name: 'Security 5', code: '5555' },
+      { id: 6, slot: 'Security 6', name: 'Security 6', code: '6666' },
     ]
 
     const supabase = getSupabase()
@@ -774,8 +774,14 @@ export const api = {
         if (!error && data?.value) {
           const parsed = JSON.parse(data.value)
           if (Array.isArray(parsed) && parsed.length === 6) {
-            localStorage.setItem('pinjammobil_security_codes', JSON.stringify(parsed))
-            return parsed
+            const cleaned = parsed.map((item, idx) => ({
+              id: item.id || idx + 1,
+              slot: item.slot || `Security ${idx + 1}`,
+              name: item.name || `Security ${idx + 1}`,
+              code: item.code || `${idx + 1}${idx + 1}${idx + 1}${idx + 1}`
+            }))
+            localStorage.setItem('pinjammobil_security_codes', JSON.stringify(cleaned))
+            return cleaned
           }
         }
       }
@@ -787,7 +793,14 @@ export const api = {
       const saved = localStorage.getItem('pinjammobil_security_codes')
       if (saved) {
         const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed) && parsed.length === 6) return parsed
+        if (Array.isArray(parsed) && parsed.length === 6) {
+          return parsed.map((item, idx) => ({
+            id: item.id || idx + 1,
+            slot: item.slot || `Security ${idx + 1}`,
+            name: item.name || `Security ${idx + 1}`,
+            code: item.code || `${idx + 1}${idx + 1}${idx + 1}${idx + 1}`
+          }))
+        }
       }
     } catch (e) {}
 

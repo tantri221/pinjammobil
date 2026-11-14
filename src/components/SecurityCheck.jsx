@@ -37,7 +37,7 @@ export function SecurityCheck({
 
   // Active Security Officers
   const activeSecurityList = useMemo(() => {
-    return (securityCodes || []).filter(s => s.isActive !== false)
+    return securityCodes || []
   }, [securityCodes])
 
   // Modal State untuk Mobil Keluar (Gate Out)
@@ -590,7 +590,7 @@ export function SecurityCheck({
                   >
                     {activeSecurityList.map(s => (
                       <option key={s.id} value={s.id}>
-                        {s.slot}: {s.name} ({s.shift})
+                        {s.name} ({s.slot || `Security ${s.id}`})
                       </option>
                     ))}
                   </select>
@@ -600,7 +600,7 @@ export function SecurityCheck({
                   <label className="text-xs font-bold text-emerald-950 mb-1 flex items-center justify-between">
                     <span className="flex items-center gap-1">
                       <Lock className="h-3 w-3 text-emerald-700" />
-                      <span>Kode PIN Security</span>
+                      <span>Kode Unik Security</span>
                     </span>
                     {currentUser?.role === 'admin' && (
                       <span className="text-[10px] text-emerald-700 font-normal italic">
@@ -613,7 +613,7 @@ export function SecurityCheck({
                     required={currentUser?.role !== 'admin'}
                     value={outSecurityPin}
                     onChange={e => setOutSecurityPin(e.target.value)}
-                    placeholder="Masukkan PIN Security..."
+                    placeholder="Masukkan Kode Unik Security..."
                     className="w-full px-2.5 py-1.5 rounded-lg border border-emerald-300 text-xs font-mono font-bold tracking-widest bg-white focus:border-emerald-600 outline-none"
                   />
                 </div>
@@ -760,7 +760,7 @@ export function SecurityCheck({
                   >
                     {activeSecurityList.map(s => (
                       <option key={s.id} value={s.id}>
-                        {s.slot}: {s.name} ({s.shift})
+                        {s.name} ({s.slot || `Security ${s.id}`})
                       </option>
                     ))}
                   </select>
@@ -770,7 +770,7 @@ export function SecurityCheck({
                   <label className="text-xs font-bold text-sky-950 mb-1 flex items-center justify-between">
                     <span className="flex items-center gap-1">
                       <Lock className="h-3 w-3 text-sky-700" />
-                      <span>Kode PIN Security</span>
+                      <span>Kode Unik Security</span>
                     </span>
                     {currentUser?.role === 'admin' && (
                       <span className="text-[10px] text-sky-700 font-normal italic">
@@ -783,7 +783,7 @@ export function SecurityCheck({
                     required={currentUser?.role !== 'admin'}
                     value={inSecurityPin}
                     onChange={e => setInSecurityPin(e.target.value)}
-                    placeholder="Masukkan PIN Security..."
+                    placeholder="Masukkan Kode Unik Security..."
                     className="w-full px-2.5 py-1.5 rounded-lg border border-sky-300 text-xs font-mono font-bold tracking-widest bg-white focus:border-sky-600 outline-none"
                   />
                 </div>
