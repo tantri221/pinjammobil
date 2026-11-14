@@ -42,7 +42,6 @@ export function SecurityCheck({
 
   // Modal State untuk Mobil Keluar (Gate Out)
   const [outModalLoan, setOutModalLoan] = useState(null)
-  const [outSecurityId, setOutSecurityId] = useState(1)
   const [outSecurityPin, setOutSecurityPin] = useState('')
   const [outKm, setOutKm] = useState('')
   const [outCondition, setOutCondition] = useState('Bodi mulus, lampu & spion normal, perlengkapan aman')
@@ -53,7 +52,6 @@ export function SecurityCheck({
 
   // Modal State untuk Mobil Kembali (Gate In)
   const [inModalLoan, setInModalLoan] = useState(null)
-  const [inSecurityId, setInSecurityId] = useState(1)
   const [inSecurityPin, setInSecurityPin] = useState('')
   const [inKm, setInKm] = useState('')
   const [inFuel, setInFuel] = useState('100')
@@ -62,6 +60,17 @@ export function SecurityCheck({
   const [inNotes, setInNotes] = useState('')
   const [isSubmittingIn, setIsSubmittingIn] = useState(false)
   const [inError, setInError] = useState('')
+
+  // Identifikasi Otomatis Petugas Berdasarkan Kode Unik
+  const matchedOutOfficer = useMemo(() => {
+    if (!outSecurityPin.trim()) return null
+    return (securityCodes || []).find(s => String(s.code).trim() === outSecurityPin.trim()) || null
+  }, [outSecurityPin, securityCodes])
+
+  const matchedInOfficer = useMemo(() => {
+    if (!inSecurityPin.trim()) return null
+    return (securityCodes || []).find(s => String(s.code).trim() === inSecurityPin.trim()) || null
+  }, [inSecurityPin, securityCodes])
 
   // Kelompokkan data peminjaman
   const loansReadyForOut = useMemo(() => {
@@ -130,9 +139,6 @@ export function SecurityCheck({
     setOutKeyHanded(true)
     setOutNotes('')
     setOutSecurityPin('')
-    if (activeSecurityList.length > 0) {
-      setOutSecurityId(activeSecurityList[0].id)
-    }
     setOutError('')
   }
 
@@ -148,28 +154,25 @@ export function SecurityCheck({
 
     let officerUser = currentUser
     if (activeSecurityList.length > 0) {
-      const selectedOfficer = activeSecurityList.find(s => s.id === Number(outSecurityId))
-      if (!selectedOfficer) {
-        setOutError('Pilih petugas security yang bertugas.')
+      if (!outSecurityPin.trim() && currentUser?.role !== 'admin') {
+        setOutError('Mohon masukkan Kode Unik Security Anda.')
         return
       }
 
-      if (currentUser?.role !== 'admin') {
-        if (!outSecurityPin.trim()) {
-          setOutError(`Masukkan Kode Security (PIN) untuk ${selectedOfficer.name}.`)
+      if (outSecurityPin.trim()) {
+        const matchedOfficer = activeSecurityList.find(s => String(s.code).trim() === outSecurityPin.trim())
+        if (!matchedOfficer && currentUser?.role !== 'admin') {
+          setOutError('Kode Unik Security tidak valid atau belum terdaftar. Silakan periksa kembali.')
           return
         }
-        if (outSecurityPin.trim() !== selectedOfficer.code) {
-          setOutError(`Kode Security (PIN) untuk ${selectedOfficer.name} salah. Harap periksa kembali.`)
-          return
-        }
-      }
 
-      officerUser = {
-        name: selectedOfficer.name,
-        slot: selectedOfficer.slot,
-        shift: selectedOfficer.shift,
-        role: 'security'
+        if (matchedOfficer) {
+          officerUser = {
+            name: matchedOfficer.name,
+            slot: matchedOfficer.slot,
+            role: 'security'
+          }
+        }
       }
     }
 
@@ -203,9 +206,6 @@ export function SecurityCheck({
     setInKeyReceived(true)
     setInNotes('')
     setInSecurityPin('')
-    if (activeSecurityList.length > 0) {
-      setInSecurityId(activeSecurityList[0].id)
-    }
     setInError('')
   }
 
@@ -227,28 +227,25 @@ export function SecurityCheck({
 
     let officerUser = currentUser
     if (activeSecurityList.length > 0) {
-      const selectedOfficer = activeSecurityList.find(s => s.id === Number(inSecurityId))
-      if (!selectedOfficer) {
-        setInError('Pilih petugas security penerima.')
+      if (!inSecurityPin.trim() && currentUser?.role !== 'admin') {
+        setInError('Mohon masukkan Kode Unik Security Anda.')
         return
       }
 
-      if (currentUser?.role !== 'admin') {
-        if (!inSecurityPin.trim()) {
-          setInError(`Masukkan Kode Security (PIN) untuk ${selectedOfficer.name}.`)
+      if (inSecurityPin.trim()) {
+        const matchedOfficer = activeSecurityList.find(s => String(s.code).trim() === inSecurityPin.trim())
+        if (!matchedOfficer && currentUser?.role !== 'admin') {
+          setInError('Kode Unik Security tidak valid atau belum terdaftar. Silakan periksa kembali.')
           return
         }
-        if (inSecurityPin.trim() !== selectedOfficer.code) {
-          setInError(`Kode Security (PIN) untuk ${selectedOfficer.name} salah. Harap periksa kembali.`)
-          return
-        }
-      }
 
-      officerUser = {
-        name: selectedOfficer.name,
-        slot: selectedOfficer.slot,
-        shift: selectedOfficer.shift,
-        role: 'security'
+        if (matchedOfficer) {
+          officerUser = {
+            name: matchedOfficer.name,
+            slot: matchedOfficer.slot,
+            role: 'security'
+          }
+        }
       }
     }
 
@@ -576,49 +573,45 @@ export function SecurityCheck({
               </div>
             </div>
 
-            {/* Otorisasi Petugas Security & Kode PIN */}
-            {activeSecurityList.length > 0 && (
-              <div className="p-3 rounded-lg bg-emerald-50/60 border border-emerald-200/80 space-y-2.5">
-                <div>
-                  <label className="block text-xs font-bold text-emerald-950 mb-1">
-                    Petugas Security yang Bertugas
-                  </label>
-                  <select
-                    value={outSecurityId}
-                    onChange={e => setOutSecurityId(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-emerald-300 text-xs bg-white text-slate-800 font-semibold outline-none"
-                  >
-                    {activeSecurityList.map(s => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({s.slot || `Security ${s.id}`})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            {/* Otorisasi Cukup dengan Kode Unik Security */}
+            <div className="p-3 rounded-lg bg-emerald-50/60 border border-emerald-200/80 space-y-1.5">
+              <label className="text-xs font-bold text-emerald-950 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Lock className="h-3.5 w-3.5 text-emerald-700" />
+                  <span>Kode Unik Security</span>
+                </span>
+                {currentUser?.role === 'admin' && (
+                  <span className="text-[10px] text-emerald-700 font-normal italic">
+                    (Bypass Admin IT)
+                  </span>
+                )}
+              </label>
 
-                <div>
-                  <label className="text-xs font-bold text-emerald-950 mb-1 flex items-center justify-between">
-                    <span className="flex items-center gap-1">
-                      <Lock className="h-3 w-3 text-emerald-700" />
-                      <span>Kode Unik Security</span>
-                    </span>
-                    {currentUser?.role === 'admin' && (
-                      <span className="text-[10px] text-emerald-700 font-normal italic">
-                        (Bypass Admin IT)
-                      </span>
-                    )}
-                  </label>
-                  <input
-                    type="password"
-                    required={currentUser?.role !== 'admin'}
-                    value={outSecurityPin}
-                    onChange={e => setOutSecurityPin(e.target.value)}
-                    placeholder="Masukkan Kode Unik Security..."
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-emerald-300 text-xs font-mono font-bold tracking-widest bg-white focus:border-emerald-600 outline-none"
-                  />
+              <input
+                type="password"
+                required={currentUser?.role !== 'admin'}
+                value={outSecurityPin}
+                onChange={e => setOutSecurityPin(e.target.value)}
+                placeholder="Ketik kode unik security Anda..."
+                className="w-full px-3 py-2 rounded-lg border border-emerald-300 text-sm font-mono font-bold tracking-widest bg-white focus:border-emerald-600 outline-none"
+              />
+
+              {/* Feedback Otomatis Mengenali Nama Security */}
+              {matchedOutOfficer ? (
+                <div className="text-[11px] text-emerald-800 font-bold flex items-center gap-1.5 pt-0.5 animate-in fade-in duration-150">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>Petugas: <strong>{matchedOutOfficer.name}</strong> ({matchedOutOfficer.slot || `Security ${matchedOutOfficer.id}`})</span>
                 </div>
-              </div>
-            )}
+              ) : outSecurityPin.trim() ? (
+                <div className="text-[10px] text-amber-700 italic pt-0.5">
+                  Kode unik belum terdaftar di sistem.
+                </div>
+              ) : (
+                <div className="text-[10px] text-slate-400">
+                  Cukup masukkan kode unik Anda untuk otorisasi mobil keluar.
+                </div>
+              )}
+            </div>
 
             {/* Input KM Keluar */}
             <div>
@@ -746,49 +739,45 @@ export function SecurityCheck({
               </div>
             </div>
 
-            {/* Otorisasi Petugas Security & Kode PIN Penerima */}
-            {activeSecurityList.length > 0 && (
-              <div className="p-3 rounded-lg bg-sky-50/60 border border-sky-200/80 space-y-2.5">
-                <div>
-                  <label className="block text-xs font-bold text-sky-950 mb-1">
-                    Petugas Security Penerima
-                  </label>
-                  <select
-                    value={inSecurityId}
-                    onChange={e => setInSecurityId(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-sky-300 text-xs bg-white text-slate-800 font-semibold outline-none"
-                  >
-                    {activeSecurityList.map(s => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({s.slot || `Security ${s.id}`})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            {/* Otorisasi Cukup dengan Kode Unik Security */}
+            <div className="p-3 rounded-lg bg-sky-50/60 border border-sky-200/80 space-y-1.5">
+              <label className="text-xs font-bold text-sky-950 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Lock className="h-3.5 w-3.5 text-sky-700" />
+                  <span>Kode Unik Security Penerima</span>
+                </span>
+                {currentUser?.role === 'admin' && (
+                  <span className="text-[10px] text-sky-700 font-normal italic">
+                    (Bypass Admin IT)
+                  </span>
+                )}
+              </label>
 
-                <div>
-                  <label className="text-xs font-bold text-sky-950 mb-1 flex items-center justify-between">
-                    <span className="flex items-center gap-1">
-                      <Lock className="h-3 w-3 text-sky-700" />
-                      <span>Kode Unik Security</span>
-                    </span>
-                    {currentUser?.role === 'admin' && (
-                      <span className="text-[10px] text-sky-700 font-normal italic">
-                        (Bypass Admin IT)
-                      </span>
-                    )}
-                  </label>
-                  <input
-                    type="password"
-                    required={currentUser?.role !== 'admin'}
-                    value={inSecurityPin}
-                    onChange={e => setInSecurityPin(e.target.value)}
-                    placeholder="Masukkan Kode Unik Security..."
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-sky-300 text-xs font-mono font-bold tracking-widest bg-white focus:border-sky-600 outline-none"
-                  />
+              <input
+                type="password"
+                required={currentUser?.role !== 'admin'}
+                value={inSecurityPin}
+                onChange={e => setInSecurityPin(e.target.value)}
+                placeholder="Ketik kode unik security Anda..."
+                className="w-full px-3 py-2 rounded-lg border border-sky-300 text-sm font-mono font-bold tracking-widest bg-white focus:border-sky-600 outline-none"
+              />
+
+              {/* Feedback Otomatis Mengenali Nama Security */}
+              {matchedInOfficer ? (
+                <div className="text-[11px] text-sky-800 font-bold flex items-center gap-1.5 pt-0.5 animate-in fade-in duration-150">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-sky-600" />
+                  <span>Petugas: <strong>{matchedInOfficer.name}</strong> ({matchedInOfficer.slot || `Security ${matchedInOfficer.id}`})</span>
                 </div>
-              </div>
-            )}
+              ) : inSecurityPin.trim() ? (
+                <div className="text-[10px] text-amber-700 italic pt-0.5">
+                  Kode unik belum terdaftar di sistem.
+                </div>
+              ) : (
+                <div className="text-[10px] text-slate-400">
+                  Cukup masukkan kode unik Anda untuk otorisasi mobil kembali.
+                </div>
+              )}
+            </div>
 
             {/* Input KM Kembali & Hitung Jarak Tempuh */}
             <div>
