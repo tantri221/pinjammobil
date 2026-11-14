@@ -11,7 +11,8 @@ import {
   ChevronRight, 
   ShieldCheck, 
   CheckSquare,
-  KeyRound
+  KeyRound,
+  UserCog
 } from 'lucide-react'
 
 export function Sidebar({
@@ -21,6 +22,7 @@ export function Sidebar({
   onOpenLoanModal,
   onOpenSecurityCodes,
   onOpenUserManagement,
+  onOpenEditProfile,
   onOpenSettings,
   onLogout,
   loanCount = 0,
@@ -88,8 +90,21 @@ export function Sidebar({
             </div>
           </div>
 
+          {/* Tombol Edit Profil Akun */}
+          <div className="mt-3 pt-2.5 border-t border-slate-700/60">
+            <button
+              type="button"
+              onClick={onOpenEditProfile}
+              className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg text-xs font-semibold bg-slate-700/60 hover:bg-sky-600 text-slate-200 hover:text-white transition border border-slate-600/50 hover:border-sky-500 cursor-pointer shadow-xs group"
+              title="Perbarui informasi profil atau ganti kata sandi"
+            >
+              <UserCog className="w-3.5 h-3.5 text-sky-400 group-hover:text-white transition-colors" />
+              <span>Edit Profil Saya</span>
+            </button>
+          </div>
+
           {/* Indikator Sesi Supabase Live */}
-          <div className="mt-3 pt-2.5 border-t border-slate-700/60 flex items-center justify-between text-[11px] text-slate-300">
+          <div className="mt-2.5 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <span>Status Koneksi:</span>

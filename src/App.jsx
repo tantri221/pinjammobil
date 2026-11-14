@@ -9,6 +9,7 @@ import { VehicleFormModal } from './components/VehicleFormModal'
 import { SupabaseSettingsModal } from './components/SupabaseSettingsModal'
 import { UserManagementModal } from './components/UserManagementModal'
 import { SecurityCodesModal } from './components/SecurityCodesModal'
+import { ProfileModal } from './components/ProfileModal'
 import { LoginPage } from './components/LoginPage'
 import { api } from './services/api'
 import { Car, AlertTriangle, RefreshCw, Plus, Layers, Clock } from 'lucide-react'
@@ -45,6 +46,7 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false)
   const [isSecurityCodesOpen, setIsSecurityCodesOpen] = useState(false)
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [securityCodes, setSecurityCodes] = useState([])
 
   // Toast
@@ -166,6 +168,19 @@ export default function App() {
       showToast('Pengguna berhasil dihapus.')
     } else {
       showToast(res.error || 'Gagal menghapus pengguna.', 'error')
+    }
+  }
+
+  const handleUpdateProfile = async (profileData) => {
+    if (!currentUser?.id) return { success: false, error: 'Sesi pengguna tidak valid.' }
+    const res = await api.updateProfile(currentUser.id, profileData)
+    if (res.success) {
+      setCurrentUser(res.user)
+      showToast('Profil akun berhasil diperbarui!')
+      return { success: true }
+    } else {
+      showToast(res.error || 'Gagal memperbarui profil.', 'error')
+      return { success: false, error: res.error }
     }
   }
 
@@ -349,6 +364,7 @@ export default function App() {
           onOpenLoanModal={() => handleOpenBorrowModal(null)}
           onOpenSecurityCodes={() => setIsSecurityCodesOpen(true)}
           onOpenUserManagement={() => setIsUserManagementOpen(true)}
+          onOpenEditProfile={() => setIsProfileModalOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onLogout={handleLogout}
           loanCount={loans.filter(l => l.status !== 'completed').length}
@@ -533,6 +549,13 @@ export default function App() {
         isOpen={isSecurityCodesOpen}
         onClose={() => setIsSecurityCodesOpen(false)}
         onSaved={loadData}
+      />
+
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        currentUser={currentUser}
+        onUpdateProfile={handleUpdateProfile}
       />
 
     </div>

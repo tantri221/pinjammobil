@@ -1038,6 +1038,74 @@ export const api = {
     }
   },
 
+  // Edit Profil Pengguna Pribadi (Bisa diakses oleh semua akun login)
+  async updateProfile(userId, profileData) {
+    const supabase = getSupabase()
+    if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
+
+    try {
+      const cleanPhone = profileData.phone ? profileData.phone.trim().replace(/[^0-9+]/g, '') : ''
+      const emailValue = profileData.email?.trim() 
+        ? profileData.email.trim().toLowerCase()
+        : (cleanPhone ? `${cleanPhone}@pinjammobil.local` : undefined)
+
+      const payload = {
+        name: (profileData.name || '').trim(),
+        username: (profileData.username || '').trim().toLowerCase(),
+        division: (profileData.division || 'Operasional').trim()
+      }
+
+      if (emailValue) {
+        payload.email = emailValue
+      }
+
+      if (profileData.password && profileData.password.trim() !== '') {
+        payload.password = profileData.password.trim()
+      }
+
+      const { data, error } = await supabase
+        .from('app_users')
+        .update(payload)
+        .eq('id', userId)
+        .select()
+
+      if (error) {
+        if (error.code === '23505') {
+          return { success: false, error: 'Username atau nomor HP / email sudah digunakan oleh user lain.' }
+        }
+        throw error
+      }
+
+      const updated = data[0]
+      const isPhoneEmail = updated?.email && updated.email.endsWith('@pinjammobil.local')
+      const phone = isPhoneEmail ? updated.email.replace('@pinjammobil.local', '') : ''
+
+      const userObj = {
+        ...updated,
+        phone,
+        displayContact: isPhoneEmail ? phone : updated?.email
+      }
+
+      // Sinkronkan sesi di localStorage jika ini adalah user yang sedang login
+      try {
+        const storedUser = localStorage.getItem('pinjammobil_auth_user')
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser)
+          if (parsed?.id === userId) {
+            localStorage.setItem('pinjammobil_auth_user', JSON.stringify(userObj))
+          }
+        }
+      } catch (e) {
+        console.warn('Gagal sinkronisasi localStorage profile:', e)
+      }
+
+      return { success: true, user: userObj }
+    } catch (err) {
+      console.error('Update profile error:', err)
+      return { success: false, error: err.message || 'Gagal memperbarui profil pengguna.' }
+    }
+  },
+
   async updateUserRole(userId, newRole) {
     const supabase = getSupabase()
     if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
