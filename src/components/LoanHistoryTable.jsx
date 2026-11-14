@@ -58,21 +58,58 @@ const formatIndonesianDate = (dateStr) => {
   }
 }
 
-const extractDateKey = (val) => {
-  if (!val) return null
+// Ekstrak representasi tanggal (YYYY-MM-DD) dari tanggal peminjaman (waktu mobil digunakan)
+const extractUsageDateKey = (dateVal) => {
+  if (!dateVal) return null
+  
+  const rawStr = String(dateVal).trim()
+  const rawMatch = rawStr.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  
   try {
-    const d = new Date(val)
-    if (isNaN(d.getTime())) {
-      const match = String(val).match(/\d{4}-\d{2}-\d{2}/)
-      return match ? match[0] : null
+    const d = new Date(dateVal)
+    if (!isNaN(d.getTime())) {
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      const localKey = `${y}-${m}-${day}`
+      return { localKey, rawKey: rawMatch ? rawMatch[0] : localKey }
     }
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    return `${y}-${m}-${day}`
-  } catch {
-    return null
+  } catch {}
+
+  if (rawMatch) {
+    return { localKey: rawMatch[0], rawKey: rawMatch[0] }
   }
+  return null
+}
+
+// Memeriksa apakah mobil digunakan pada tanggal target terpilih
+// MURNI berdasarkan tanggal peminjaman (start_date / end_date), BUKAN tanggal input created_at
+const isLoanUsedOnDate = (loan, targetDateKey) => {
+  if (!targetDateKey) return true
+
+  const startObj = extractUsageDateKey(loan.start_date)
+  const endObj = extractUsageDateKey(loan.end_date) || startObj
+
+  if (!startObj && !endObj) return false
+
+  const target = targetDateKey.trim()
+
+  const startLocal = startObj?.localKey
+  const startRaw = startObj?.rawKey
+  const endLocal = endObj?.localKey || startLocal
+  const endRaw = endObj?.rawKey || startRaw
+
+  // 1. Cocok pada tanggal mulai pakai mobil
+  if (startLocal === target || startRaw === target) return true
+
+  // 2. Cocok pada tanggal selesai pakai mobil
+  if (endLocal === target || endRaw === target) return true
+
+  // 3. Cocok jika tanggal target berada di dalam rentang pemakaian mobil
+  if (startLocal && endLocal && startLocal <= target && target <= endLocal) return true
+  if (startRaw && endRaw && startRaw <= target && target <= endRaw) return true
+
+  return false
 }
 
 export function LoanHistoryTable({ 
@@ -122,25 +159,10 @@ export function LoanHistoryTable({
     setFilterMode('daily')
   }
 
-  // Logika memeriksa apakah transaksi relevan pada tanggal target
-  const isLoanOnDate = (loan, targetDateKey) => {
-    if (!targetDateKey) return true
-    
-    const startKey = extractDateKey(loan.start_date)
-    const endKey = extractDateKey(loan.end_date)
-    const createdKey = extractDateKey(loan.created_at)
-
-    if (startKey === targetDateKey) return true
-    if (createdKey === targetDateKey) return true
-    if (startKey && endKey && startKey <= targetDateKey && targetDateKey <= endKey) {
-      return true
-    }
-    return false
-  }
-
   const filteredLoans = useMemo(() => {
-    return loans.filter(loan => {
-      const matchesDate = filterMode === 'all' || isLoanOnDate(loan, selectedDate)
+    const list = loans.filter(loan => {
+      // Filter strictly berdasarkan tanggal mobil digunakan (start_date / end_date)
+      const matchesDate = filterMode === 'all' || isLoanUsedOnDate(loan, selectedDate)
       if (!matchesDate) return false
 
       if (!searchQuery.trim()) return true
@@ -153,6 +175,13 @@ export function LoanHistoryTable({
         (loan.purpose && loan.purpose.toLowerCase().includes(q)) ||
         (loan.destination && loan.destination.toLowerCase().includes(q))
       )
+    })
+
+    // Urutkan berdasarkan waktu penggunaan mobil terbaru ke terlama
+    return list.sort((a, b) => {
+      const dateA = new Date(a.start_date || a.created_at || 0).getTime()
+      const dateB = new Date(b.start_date || b.created_at || 0).getTime()
+      return dateB - dateA
     })
   }, [loans, filterMode, selectedDate, searchQuery])
 
@@ -227,11 +256,11 @@ export function LoanHistoryTable({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-sky-700 bg-sky-100/80 border border-sky-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  {filterMode === 'daily' ? '📅 History Harian' : '📋 Semua Riwayat'}
+                <span className="text-[10px] font-bold text-sky-700 bg-sky-100/80 border border-sky-200 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                  {filterMode === 'daily' ? '📅 Penggunaan Mobil Harian' : '📋 Semua Riwayat'}
                 </span>
                 <span className="text-xs text-slate-500 font-medium">
-                  {filterMode === 'daily' ? formatIndonesianDate(selectedDate) : 'Seluruh Riwayat Transaksi'}
+                  {filterMode === 'daily' ? `Tanggal Pemakaian: ${formatIndonesianDate(selectedDate)}` : 'Seluruh Riwayat Transaksi'}
                 </span>
               </div>
               <h3 className="text-base sm:text-lg font-bold text-slate-800 mt-1">
@@ -243,7 +272,7 @@ export function LoanHistoryTable({
               <div className="text-xs font-semibold text-slate-600 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
                 {filterMode === 'daily' ? (
                   <>
-                    Transaksi Hari Ini: <span className="font-bold text-sky-700">{filteredLoans.length}</span>
+                    Mobil Digunakan: <span className="font-bold text-sky-700">{filteredLoans.length}</span>
                     <span className="text-slate-400 font-normal"> / {loans.length} total</span>
                   </>
                 ) : (
@@ -391,12 +420,12 @@ export function LoanHistoryTable({
                     <CalendarDays className="h-10 w-10 mx-auto mb-3 text-slate-300 stroke-1" />
                     <div className="font-bold text-slate-700 text-sm">
                       {filterMode === 'daily' 
-                        ? `Tidak ada catatan transaksi peminjaman pada ${formatIndonesianDate(selectedDate)}`
+                        ? `Tidak ada peminjaman mobil yang digunakan pada tanggal ${formatIndonesianDate(selectedDate)}`
                         : 'Tidak ada transaksi peminjaman yang cocok dengan filter.'}
                     </div>
                     <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
                       {filterMode === 'daily' 
-                        ? 'Gunakan navigasi tanggal di atas untuk melihat tanggal lain, atau klik "Semua Riwayat" untuk melihat seluruh catatan.'
+                        ? 'Gunakan pemilih tanggal di atas untuk melihat tanggal penggunaan mobil yang lain, atau klik "Semua Riwayat" untuk melihat seluruh catatan.'
                         : 'Coba ubah kata kunci pencarian atau reset filter.'}
                     </p>
                     <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">
