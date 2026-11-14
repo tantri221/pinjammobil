@@ -12,7 +12,8 @@ import {
   ShieldCheck, 
   CheckSquare,
   KeyRound,
-  UserCog
+  UserCog,
+  Trash2
 } from 'lucide-react'
 
 export function Sidebar({
@@ -23,6 +24,7 @@ export function Sidebar({
   onOpenSecurityCodes,
   onOpenUserManagement,
   onOpenEditProfile,
+  onOpenResetLoans,
   onOpenSettings,
   onLogout,
   loanCount = 0,
@@ -243,6 +245,22 @@ export function Sidebar({
                   <span>Kelola User & Registrasi</span>
                 </div>
                 <ChevronRight className="h-3.5 w-3.5 text-indigo-400" />
+              </button>
+
+              {/* Reset / Hapus Histori Peminjaman (Admin Only) */}
+              <button
+                type="button"
+                onClick={onOpenResetLoans}
+                className="w-full text-left px-3.5 py-2.5 rounded-xl font-semibold transition text-rose-200 bg-rose-950/40 border border-rose-800/60 hover:bg-rose-900/60 hover:text-white flex items-center justify-between cursor-pointer"
+                title="Tools Admin: Bersihkan atau reset basis data riwayat peminjaman"
+              >
+                <div className="flex items-center gap-2">
+                  <Trash2 className="h-4 w-4 text-rose-400" />
+                  <span>Reset Histori Peminjaman</span>
+                </div>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-400/30 font-mono">
+                  Admin
+                </span>
               </button>
             </div>
           )}

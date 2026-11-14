@@ -10,6 +10,7 @@ import { SupabaseSettingsModal } from './components/SupabaseSettingsModal'
 import { UserManagementModal } from './components/UserManagementModal'
 import { SecurityCodesModal } from './components/SecurityCodesModal'
 import { ProfileModal } from './components/ProfileModal'
+import { ResetLoanHistoryModal } from './components/ResetLoanHistoryModal'
 import { LoginPage } from './components/LoginPage'
 import { api } from './services/api'
 import { Car, AlertTriangle, RefreshCw, Plus, Layers, Clock } from 'lucide-react'
@@ -47,6 +48,7 @@ export default function App() {
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false)
   const [isSecurityCodesOpen, setIsSecurityCodesOpen] = useState(false)
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const [isResetLoansOpen, setIsResetLoansOpen] = useState(false)
   const [securityCodes, setSecurityCodes] = useState([])
 
   // Toast
@@ -276,6 +278,19 @@ export default function App() {
     }
   }
 
+  const handleResetLoans = async (params) => {
+    if (!isAdmin) return { success: false, error: 'Akses ditolak: Hanya Administrator IT yang memiliki wewenang ini.' }
+    const res = await api.resetLoans(params)
+    if (res.success) {
+      showToast(res.message || 'Riwayat peminjaman berhasil diperbarui!')
+      loadData()
+      return { success: true }
+    } else {
+      showToast(res.error || 'Gagal mereset riwayat peminjaman.', 'error')
+      return { success: false, error: res.error }
+    }
+  }
+
   const handleCancelLoan = async (loanId, vehicleId, reason) => {
     const res = await api.cancelLoan(loanId, vehicleId, currentUser, reason)
     if (res.success) {
@@ -365,6 +380,7 @@ export default function App() {
           onOpenSecurityCodes={() => setIsSecurityCodesOpen(true)}
           onOpenUserManagement={() => setIsUserManagementOpen(true)}
           onOpenEditProfile={() => setIsProfileModalOpen(true)}
+          onOpenResetLoans={() => setIsResetLoansOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onLogout={handleLogout}
           loanCount={loans.filter(l => l.status !== 'completed').length}
@@ -477,11 +493,12 @@ export default function App() {
           {activeTab === 'loans' && (
             <LoanHistoryTable
               loans={loans}
-              isAdmin={canManageLoans}
+              isAdmin={isAdmin}
               currentUser={currentUser}
               onReturnVehicle={handleReturnVehicle}
               onDeleteLoan={handleDeleteLoan}
               onCancelLoan={handleCancelLoan}
+              onOpenResetLoans={() => setIsResetLoansOpen(true)}
             />
           )}
 
@@ -556,6 +573,13 @@ export default function App() {
         onClose={() => setIsProfileModalOpen(false)}
         currentUser={currentUser}
         onUpdateProfile={handleUpdateProfile}
+      />
+
+      <ResetLoanHistoryModal
+        isOpen={isResetLoansOpen}
+        onClose={() => setIsResetLoansOpen(false)}
+        loans={loans}
+        onResetLoans={handleResetLoans}
       />
 
     </div>

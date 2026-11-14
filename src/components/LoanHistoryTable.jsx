@@ -118,7 +118,8 @@ export function LoanHistoryTable({
   currentUser = null, 
   onReturnVehicle, 
   onDeleteLoan,
-  onCancelLoan 
+  onCancelLoan,
+  onOpenResetLoans
 }) {
   const [returningLoan, setReturningLoan] = useState(null)
   const [endMileage, setEndMileage] = useState('')
@@ -377,23 +378,38 @@ export function LoanHistoryTable({
               </div>
             </div>
 
-            {/* Pencarian Teks */}
-            <div className="relative min-w-[200px] max-w-xs w-full">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Cari peminjam / unit / plat..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-7 py-1.5 text-xs rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-              />
-              {searchQuery && (
+            <div className="flex items-center gap-2">
+              {/* Pencarian Teks */}
+              <div className="relative min-w-[180px] max-w-xs w-full">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Cari peminjam / unit / plat..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-7 py-1.5 text-xs rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 text-xs"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Tools Admin: Reset Riwayat */}
+              {isAdmin && onOpenResetLoans && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 text-xs"
+                  onClick={onOpenResetLoans}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
+                  title="Tools Administrator: Hapus atau reset riwayat peminjaman kendaraan"
                 >
-                  ✕
+                  <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+                  <span className="hidden sm:inline">Reset Riwayat</span>
                 </button>
               )}
             </div>

@@ -708,6 +708,77 @@ export const api = {
     }
   },
 
+  // Reset / Hapus Massal Histori Peminjaman (Admin Only)
+  async resetLoans({ mode = 'all', loanIds = null } = {}) {
+    const supabase = getSupabase()
+    if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }
+
+    try {
+      if (mode === 'all') {
+        // Hapus SEMUA riwayat peminjaman
+        const { error } = await supabase
+          .from('loans')
+          .delete()
+          .not('id', 'is', null)
+
+        if (error) throw error
+
+        // Pulihkan seluruh armada yang sedang 'borrowed' menjadi 'available'
+        await supabase
+          .from('vehicles')
+          .update({ status: 'available' })
+          .eq('status', 'borrowed')
+
+        return { success: true, message: 'Seluruh riwayat peminjaman berhasil di-reset.' }
+      }
+
+      if (mode === 'completed') {
+        // Hapus hanya transaksi yang sudah selesai atau ditolak
+        const { error } = await supabase
+          .from('loans')
+          .delete()
+          .in('status', ['completed', 'rejected'])
+
+        if (error) throw error
+        return { success: true, message: 'Seluruh histori transaksi selesai / ditolak berhasil dibersihkan.' }
+      }
+
+      if (mode === 'selected' && Array.isArray(loanIds) && loanIds.length > 0) {
+        // Ambil data pinjaman untuk memeriksa apakah ada armada aktif yang terhapus
+        const { data: toDelete } = await supabase
+          .from('loans')
+          .select('id, vehicle_id, status')
+          .in('id', loanIds)
+
+        const { error } = await supabase
+          .from('loans')
+          .delete()
+          .in('id', loanIds)
+
+        if (error) throw error
+
+        // Pulihkan status armada jika transaksi aktif ikut terhapus
+        const activeVehicleIds = (toDelete || [])
+          .filter(l => l.status === 'approved' && l.vehicle_id)
+          .map(l => l.vehicle_id)
+
+        if (activeVehicleIds.length > 0) {
+          await supabase
+            .from('vehicles')
+            .update({ status: 'available' })
+            .in('id', activeVehicleIds)
+        }
+
+        return { success: true, message: `${loanIds.length} data riwayat peminjaman berhasil dihapus.` }
+      }
+
+      return { success: false, error: 'Mode reset tidak valid.' }
+    } catch (err) {
+      console.error('Supabase resetLoans error:', err)
+      return { success: false, error: err.message || 'Gagal mereset histori peminjaman.' }
+    }
+  },
+
   // ==========================================
   // 3. AUTHENTICATION & SETTINGS
   // ==========================================
