@@ -11,6 +11,8 @@ import { UserManagementModal } from './components/UserManagementModal'
 import { SecurityCodesModal } from './components/SecurityCodesModal'
 import { ProfileModal } from './components/ProfileModal'
 import { ResetLoanHistoryModal } from './components/ResetLoanHistoryModal'
+import { PicContactsModal } from './components/PicContactsModal'
+import { WhatsAppFollowUpModal } from './components/WhatsAppFollowUpModal'
 import { LoginPage } from './components/LoginPage'
 import { api } from './services/api'
 import { Car, AlertTriangle, RefreshCw, Plus, Layers, Clock } from 'lucide-react'
@@ -49,6 +51,13 @@ export default function App() {
   const [isSecurityCodesOpen, setIsSecurityCodesOpen] = useState(false)
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [isResetLoansOpen, setIsResetLoansOpen] = useState(false)
+  const [isPicContactsOpen, setIsPicContactsOpen] = useState(false)
+  const [followUpLoan, setFollowUpLoan] = useState(null)
+  const [picContacts, setPicContacts] = useState({
+    ga: { role: 'ga', title: 'General Affairs (GA)', name: 'PIC General Affairs', phone: '' },
+    spv: { role: 'spv', title: 'Supervisor (SPV)', name: 'PIC Supervisor', phone: '' },
+    adh: { role: 'adh', title: 'Administration Head (ADH)', name: 'PIC Administration Head', phone: '' }
+  })
   const [securityCodes, setSecurityCodes] = useState([])
 
   // Toast
@@ -68,16 +77,20 @@ export default function App() {
     setIsRefreshing(true)
     setSupabaseError(null)
     try {
-      const [vRes, lRes, regStatus, secCodes] = await Promise.all([
+      const [vRes, lRes, regStatus, secCodes, contactsRes] = await Promise.all([
         api.getVehicles(),
         api.getLoans(),
         api.getRegistrationStatus(),
-        api.getSecurityCodes()
+        api.getSecurityCodes(),
+        api.getPicContacts()
       ])
 
       setIsRegistrationAllowed(regStatus)
       if (Array.isArray(secCodes)) {
         setSecurityCodes(secCodes)
+      }
+      if (contactsRes && typeof contactsRes === 'object') {
+        setPicContacts(contactsRes)
       }
 
       if (vRes.error) {
@@ -291,6 +304,18 @@ export default function App() {
     }
   }
 
+  const handleSavePicContacts = async (newContacts) => {
+    const res = await api.savePicContacts(newContacts)
+    if (res.success) {
+      setPicContacts(newContacts)
+      showToast('Kontak WhatsApp PIC berhasil diperbarui!')
+      return { success: true }
+    } else {
+      showToast(res.error || 'Gagal menyimpan kontak PIC.', 'error')
+      return { success: false, error: res.error }
+    }
+  }
+
   const handleCancelLoan = async (loanId, vehicleId, reason) => {
     const res = await api.cancelLoan(loanId, vehicleId, currentUser, reason)
     if (res.success) {
@@ -381,6 +406,7 @@ export default function App() {
           onOpenUserManagement={() => setIsUserManagementOpen(true)}
           onOpenEditProfile={() => setIsProfileModalOpen(true)}
           onOpenResetLoans={() => setIsResetLoansOpen(true)}
+          onOpenPicContacts={() => setIsPicContactsOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onLogout={handleLogout}
           loanCount={loans.filter(l => l.status !== 'completed').length}
@@ -499,6 +525,7 @@ export default function App() {
               onDeleteLoan={handleDeleteLoan}
               onCancelLoan={handleCancelLoan}
               onOpenResetLoans={() => setIsResetLoansOpen(true)}
+              onOpenWhatsAppFollowUp={(loan) => setFollowUpLoan(loan)}
             />
           )}
 
@@ -509,6 +536,8 @@ export default function App() {
               currentUser={currentUser}
               onUpdateApproval={handleUpdateApproval}
               onRefresh={loadData}
+              onOpenWhatsAppFollowUp={(loan) => setFollowUpLoan(loan)}
+              onOpenPicContacts={() => setIsPicContactsOpen(true)}
             />
           )}
 
@@ -580,6 +609,23 @@ export default function App() {
         onClose={() => setIsResetLoansOpen(false)}
         loans={loans}
         onResetLoans={handleResetLoans}
+      />
+
+      <PicContactsModal
+        isOpen={isPicContactsOpen}
+        onClose={() => setIsPicContactsOpen(false)}
+        initialContacts={picContacts}
+        onSaveContacts={handleSavePicContacts}
+      />
+
+      <WhatsAppFollowUpModal
+        isOpen={Boolean(followUpLoan)}
+        onClose={() => setFollowUpLoan(null)}
+        loan={followUpLoan}
+        picContacts={picContacts}
+        onOpenEditPicContacts={() => {
+          setIsPicContactsOpen(true)
+        }}
       />
 
     </div>

@@ -16,7 +16,9 @@ import {
   UserCheck,
   Building,
   Wrench,
-  Layers
+  Layers,
+  MessageCircle,
+  PhoneCall
 } from 'lucide-react'
 import { Modal } from './ui/Modal'
 import { isTestDriveLoan } from '../lib/utils'
@@ -25,7 +27,9 @@ export function ApprovalCenter({
   loans = [], 
   currentUser, 
   onUpdateApproval,
-  onRefresh 
+  onRefresh,
+  onOpenWhatsAppFollowUp,
+  onOpenPicContacts
 }) {
   // Sub-tabs: 'ga' | 'spv' | 'adh' | 'all'
   const [activeSubTab, setActiveSubTab] = useState('ga')
@@ -295,10 +299,25 @@ export function ApprovalCenter({
           </button>
         </div>
 
-        {/* User Role Badge */}
-        <div className="hidden lg:flex items-center gap-2 text-xs text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg">
-          <ShieldCheck className="h-3.5 w-3.5 text-sky-600" />
-          <span>Wewenang: <strong className="text-slate-800 uppercase">{currentUser?.role || 'Staff'}</strong></span>
+        {/* Tombol Pengaturan Kontak WA PIC & User Role Badge */}
+        <div className="flex items-center gap-2">
+          {onOpenPicContacts && (
+            <button
+              type="button"
+              onClick={onOpenPicContacts}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              title="Atur nomor WhatsApp PIC GA, SPV, dan ADH"
+            >
+              <PhoneCall className="h-3.5 w-3.5 text-emerald-600" />
+              <span>Kelola No WA PIC</span>
+            </button>
+          )}
+
+          {/* User Role Badge */}
+          <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
+            <ShieldCheck className="h-3.5 w-3.5 text-sky-600" />
+            <span>Wewenang: <strong className="text-slate-800 uppercase">{currentUser?.role || 'Staff'}</strong></span>
+          </div>
         </div>
       </div>
 
@@ -432,8 +451,20 @@ export function ApprovalCenter({
                     {renderStepPill('3. ADH', approvals.adh)}
                   </div>
 
-                  {/* Tombol Aksi Langsung */}
-                  <div className="flex items-center gap-2 self-end md:self-auto">
+                  {/* Tombol Aksi Langsung & Follow Up WA */}
+                  <div className="flex items-center gap-2 self-end md:self-auto flex-wrap">
+                    {/* Tombol Follow Up WhatsApp */}
+                    {onOpenWhatsAppFollowUp && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenWhatsAppFollowUp(loan)}
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                        title="Kirim pesan WhatsApp follow up verifikasi / persetujuan"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                        <span>Follow Up WA</span>
+                      </button>
+                    )}
                     
                     {/* Aksi Tab GA */}
                     {activeSubTab === 'ga' && (

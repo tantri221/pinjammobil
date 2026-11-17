@@ -900,6 +900,79 @@ export const api = {
     }
   },
 
+  // Kontak WhatsApp PIC Otorisasi (GA, SPV, ADH)
+  async getPicContacts() {
+    const defaultContacts = {
+      ga: { role: 'ga', title: 'General Affairs (GA)', name: 'PIC General Affairs', phone: '' },
+      spv: { role: 'spv', title: 'Supervisor (SPV)', name: 'PIC Supervisor', phone: '' },
+      adh: { role: 'adh', title: 'Administration Head (ADH)', name: 'PIC Administration Head', phone: '' }
+    }
+
+    const supabase = getSupabase()
+    try {
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'pic_whatsapp_contacts')
+          .single()
+
+        if (!error && data?.value) {
+          const parsed = JSON.parse(data.value)
+          if (parsed && typeof parsed === 'object') {
+            const merged = {
+              ga: { ...defaultContacts.ga, ...(parsed.ga || {}) },
+              spv: { ...defaultContacts.spv, ...(parsed.spv || {}) },
+              adh: { ...defaultContacts.adh, ...(parsed.adh || {}) }
+            }
+            localStorage.setItem('pinjammobil_pic_whatsapp_contacts', JSON.stringify(merged))
+            return merged
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Gagal membaca pic_whatsapp_contacts dari Supabase:', err)
+    }
+
+    try {
+      const saved = localStorage.getItem('pinjammobil_pic_whatsapp_contacts')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed && typeof parsed === 'object') {
+          return {
+            ga: { ...defaultContacts.ga, ...(parsed.ga || {}) },
+            spv: { ...defaultContacts.spv, ...(parsed.spv || {}) },
+            adh: { ...defaultContacts.adh, ...(parsed.adh || {}) }
+          }
+        }
+      }
+    } catch (e) {}
+
+    return defaultContacts
+  },
+
+  async savePicContacts(contacts) {
+    const supabase = getSupabase()
+    try {
+      localStorage.setItem('pinjammobil_pic_whatsapp_contacts', JSON.stringify(contacts))
+
+      if (supabase) {
+        await supabase
+          .from('app_settings')
+          .upsert({
+            key: 'pic_whatsapp_contacts',
+            value: JSON.stringify(contacts),
+            updated_at: new Date().toISOString()
+          })
+      }
+
+      return { success: true, data: contacts }
+    } catch (err) {
+      console.error('savePicContacts error:', err)
+      return { success: false, error: err.message }
+    }
+  },
+
   async login(identifier, password) {
     const supabase = getSupabase()
     if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }

@@ -15,7 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
-  RotateCcw
+  RotateCcw,
+  MessageCircle
 } from 'lucide-react'
 import { Modal } from './ui/Modal'
 import { isTestDriveLoan } from '../lib/utils'
@@ -119,7 +120,8 @@ export function LoanHistoryTable({
   onReturnVehicle, 
   onDeleteLoan,
   onCancelLoan,
-  onOpenResetLoans
+  onOpenResetLoans,
+  onOpenWhatsAppFollowUp
 }) {
   const [returningLoan, setReturningLoan] = useState(null)
   const [endMileage, setEndMileage] = useState('')
@@ -621,6 +623,19 @@ export function LoanHistoryTable({
                             >
                               <CornerDownLeft className="h-3 w-3" />
                               <span>Kembalikan</span>
+                            </button>
+                          )}
+
+                          {/* Tombol Follow Up WhatsApp untuk Tiket yang Masih Pending */}
+                          {isPending && onOpenWhatsAppFollowUp && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenWhatsAppFollowUp(loan)}
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                              title="Kirim pesan WhatsApp follow up persetujuan ke PIC terkait"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                              <span>Follow Up WA</span>
                             </button>
                           )}
 

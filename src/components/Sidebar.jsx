@@ -13,7 +13,8 @@ import {
   CheckSquare,
   KeyRound,
   UserCog,
-  Trash2
+  Trash2,
+  PhoneCall
 } from 'lucide-react'
 
 export function Sidebar({
@@ -25,6 +26,7 @@ export function Sidebar({
   onOpenUserManagement,
   onOpenEditProfile,
   onOpenResetLoans,
+  onOpenPicContacts,
   onOpenSettings,
   onLogout,
   loanCount = 0,
@@ -245,6 +247,22 @@ export function Sidebar({
                   <span>Kelola User & Registrasi</span>
                 </div>
                 <ChevronRight className="h-3.5 w-3.5 text-indigo-400" />
+              </button>
+
+              {/* Kelola Kontak WA PIC (GA, SPV, ADH) */}
+              <button
+                type="button"
+                onClick={onOpenPicContacts}
+                className="w-full text-left px-3.5 py-2.5 rounded-xl font-semibold transition text-sky-200 bg-sky-950/40 border border-sky-800/60 hover:bg-sky-900/60 hover:text-white flex items-center justify-between cursor-pointer"
+                title="Input dan kelola nomor WhatsApp PIC GA, SPV, dan ADH untuk follow up"
+              >
+                <div className="flex items-center gap-2">
+                  <PhoneCall className="h-4 w-4 text-sky-400" />
+                  <span>Kelola No WA PIC (GA/SPV/ADH)</span>
+                </div>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30 font-mono">
+                  WA
+                </span>
               </button>
 
               {/* Reset / Hapus Histori Peminjaman (Admin Only) */}
