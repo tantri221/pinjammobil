@@ -117,6 +117,159 @@ const isLoanUsedOnDate = (loan, targetDateKey) => {
   return false
 }
 
+// Menghitung status spesifik terupdate dan rincian alur verifikasi
+const getLoanStageDetails = (loan, formatDate) => {
+  const approvals = loan?.approvals || {}
+  const ga = approvals.ga || { status: 'pending' }
+  const spv = approvals.spv || { status: 'pending' }
+  const adh = approvals.adh || { status: 'pending' }
+  const sec = loan?.security || {}
+
+  const isCompleted = loan?.status === 'completed' || sec.gate_status === 'in'
+  const isRejected = loan?.status === 'rejected'
+  const isApproved = loan?.status === 'approved'
+
+  // 1. Status Ditolak / Dibatalkan
+  if (isRejected) {
+    if (ga.status === 'rejected') {
+      return {
+        title: 'Ditolak oleh GA',
+        subtitle: ga.by ? `Oleh: ${ga.by}` : 'Verifikasi ketersediaan armada ditolak',
+        badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
+        dotClass: 'bg-rose-500',
+        activeStage: 'ga',
+        isRejected: true,
+        ga, spv, adh, sec
+      }
+    }
+    if (spv.status === 'rejected') {
+      return {
+        title: 'Ditolak oleh SPV',
+        subtitle: spv.by ? `Oleh: ${spv.by}` : 'Persetujuan supervisor ditolak',
+        badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
+        dotClass: 'bg-rose-500',
+        activeStage: 'spv',
+        isRejected: true,
+        ga, spv, adh, sec
+      }
+    }
+    if (adh.status === 'rejected') {
+      return {
+        title: 'Ditolak oleh ADH',
+        subtitle: adh.by ? `Oleh: ${adh.by}` : 'Otorisasi ADH ditolak',
+        badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
+        dotClass: 'bg-rose-500',
+        activeStage: 'adh',
+        isRejected: true,
+        ga, spv, adh, sec
+      }
+    }
+    return {
+      title: 'Dibatalkan Pemohon',
+      subtitle: 'Pengajuan dibatalkan sebelum selesai',
+      badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
+      dotClass: 'bg-rose-500',
+      activeStage: 'cancelled',
+      isRejected: true,
+      ga, spv, adh, sec
+    }
+  }
+
+  // 2. Status Selesai
+  if (isCompleted) {
+    return {
+      title: 'Selesai (Mobil Telah Kembali)',
+      subtitle: sec.in_time 
+        ? `Kembali di pos gerbang (${sec.in_by || 'Security'})` 
+        : 'Unit kendaraan telah dikembalikan',
+      badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      dotClass: 'bg-emerald-500',
+      activeStage: 'completed',
+      isCompleted: true,
+      ga, spv, adh, sec
+    }
+  }
+
+  // 3. Status Sedang Digunakan (Mobil di Luar Kantor)
+  if (sec.gate_status === 'out' || sec.out_time) {
+    return {
+      title: 'Sedang Digunakan (Mobil di Luar)',
+      subtitle: sec.out_time 
+        ? `Keluar pos: ${formatDate ? formatDate(sec.out_time) : ''} (${sec.out_by || 'Security'})`
+        : 'Kendaraan aktif di perjalanan dinas',
+      badgeClass: 'bg-blue-50 text-blue-700 border-blue-200',
+      dotClass: 'bg-blue-500',
+      activeStage: 'security_out',
+      isInUse: true,
+      ga, spv, adh, sec
+    }
+  }
+
+  // 4. Status Disetujui Penuh (Siap Keluar Gerbang)
+  if (isApproved) {
+    return {
+      title: 'Disetujui (Siap di Pos Security)',
+      subtitle: 'Otorisasi lengkap, silakan ambil kunci di pos security',
+      badgeClass: 'bg-sky-50 text-sky-700 border-sky-200',
+      dotClass: 'bg-sky-500',
+      activeStage: 'approved',
+      isApproved: true,
+      ga, spv, adh, sec
+    }
+  }
+
+  // 5. Tahapan Pending (Sedang Berjalan)
+  // 5a. Menunggu GA
+  if (ga.status === 'pending') {
+    return {
+      title: 'Menunggu Verifikasi GA',
+      subtitle: 'Pengecekan ketersediaan armada oleh PIC GA',
+      badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
+      dotClass: 'bg-amber-500 animate-pulse',
+      activeStage: 'ga',
+      isPending: true,
+      ga, spv, adh, sec
+    }
+  }
+
+  // 5b. Menunggu SPV
+  if (spv.status === 'pending' && spv.status !== 'not_required') {
+    return {
+      title: 'Menunggu Persetujuan SPV',
+      subtitle: 'Validasi dinas & persetujuan supervisor',
+      badgeClass: 'bg-teal-50 text-teal-800 border-teal-200',
+      dotClass: 'bg-teal-500 animate-pulse',
+      activeStage: 'spv',
+      isPending: true,
+      ga, spv, adh, sec
+    }
+  }
+
+  // 5c. Menunggu ADH
+  if (adh.status === 'pending' && adh.status !== 'not_required') {
+    return {
+      title: 'Menunggu Otorisasi ADH',
+      subtitle: 'Otorisasi final oleh Administration Head',
+      badgeClass: 'bg-purple-50 text-purple-800 border-purple-200',
+      dotClass: 'bg-purple-500 animate-pulse',
+      activeStage: 'adh',
+      isPending: true,
+      ga, spv, adh, sec
+    }
+  }
+
+  // Fallback
+  return {
+    title: 'Menunggu Persetujuan',
+    subtitle: 'Sedang dalam antrean otorisasi',
+    badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
+    dotClass: 'bg-amber-500',
+    activeStage: 'general',
+    isPending: true,
+    ga, spv, adh, sec
+  }
+}
+
 export function LoanHistoryTable({ 
   loans = [], 
   isAdmin = false, 
@@ -452,7 +605,7 @@ export function LoanHistoryTable({
                 <th className="py-3 px-4">Jadwal Pinjam</th>
                 <th className="py-3 px-4">Mobil Keluar & Pos Security</th>
                 <th className="py-3 px-4">Tujuan / Keperluan</th>
-                <th className="py-3 px-4">Status & Verifikasi</th>
+                <th className="py-3 px-4">Status & Alur Verifikasi</th>
                 <th className="py-3 px-4 text-right">Aksi</th>
               </tr>
             </thead>
@@ -656,60 +809,117 @@ export function LoanHistoryTable({
                         </div>
                       </td>
 
-                      {/* Status */}
-                      <td className="py-3.5 px-4">
-                        {isCompleted ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <Check className="h-3 w-3 text-emerald-600" /> Selesai
-                          </span>
-                        ) : isPending ? (
-                          <div className="space-y-1">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                              <Clock className="h-3 w-3 text-amber-600" /> Menunggu Persetujuan
-                            </span>
-                            {loan.approvals && (
-                              <div className="flex items-center gap-1 text-[9px] font-bold">
-                                <span 
-                                  title="1. Verifikasi GA"
-                                  className={`px-1.5 py-0.5 rounded ${
-                                    loan.approvals.ga?.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
-                                    loan.approvals.ga?.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                                  }`}
-                                >
-                                  GA {loan.approvals.ga?.status === 'approved' ? '✓' : loan.approvals.ga?.status === 'rejected' ? '✗' : '⏳'}
+                      {/* Status & Alur Verifikasi */}
+                      <td className="py-3.5 px-4 min-w-[240px]">
+                        {(() => {
+                          const stageInfo = getLoanStageDetails(loan, formatDate)
+                          const { ga, spv, adh } = stageInfo
+
+                          // GA props
+                          const isGaActive = stageInfo.activeStage === 'ga'
+                          const gaBadge = ga.status === 'approved' 
+                            ? { label: '✓', cls: 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold', title: `1. GA: Disetujui oleh ${ga.by || 'PIC GA'} pada ${formatDate(ga.at)}` }
+                            : ga.status === 'rejected'
+                            ? { label: '✗', cls: 'bg-rose-100 text-rose-800 border-rose-300 font-bold', title: `1. GA: Ditolak oleh ${ga.by || 'PIC GA'} ${ga.notes ? `("${ga.notes}")` : ''}` }
+                            : isGaActive
+                            ? { label: '⏳', cls: 'bg-amber-100 text-amber-900 border-amber-300 animate-pulse font-bold shadow-2xs', title: '1. GA: Sedang menunggu verifikasi ketersediaan armada' }
+                            : { label: '○', cls: 'bg-slate-50 text-slate-400 border-slate-200', title: '1. GA: Belum diproses' }
+
+                          // SPV props
+                          const isSpvActive = stageInfo.activeStage === 'spv'
+                          const spvBadge = spv.status === 'approved'
+                            ? { label: '✓', cls: 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold', title: `2. SPV: Disetujui oleh ${spv.by || 'Supervisor'} pada ${formatDate(spv.at)}` }
+                            : spv.status === 'rejected'
+                            ? { label: '✗', cls: 'bg-rose-100 text-rose-800 border-rose-300 font-bold', title: `2. SPV: Ditolak oleh ${spv.by || 'Supervisor'} ${spv.notes ? `("${spv.notes}")` : ''}` }
+                            : spv.status === 'not_required'
+                            ? { label: '-', cls: 'bg-slate-100 text-slate-400 border-slate-200 line-through', title: '2. SPV: Dilewati (Tidak Diperlukan untuk armada ini)' }
+                            : isSpvActive
+                            ? { label: '⏳', cls: 'bg-teal-100 text-teal-900 border-teal-300 animate-pulse font-bold shadow-2xs', title: '2. SPV: Sedang menunggu persetujuan supervisor' }
+                            : { label: '○', cls: 'bg-slate-50 text-slate-400 border-slate-200', title: '2. SPV: Menunggu giliran setelah GA' }
+
+                          // ADH props
+                          const isAdhActive = stageInfo.activeStage === 'adh'
+                          const adhBadge = adh.status === 'approved'
+                            ? { label: '✓', cls: 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold', title: `3. ADH: Disetujui oleh ${adh.by || 'Administration Head'} pada ${formatDate(adh.at)}` }
+                            : adh.status === 'rejected'
+                            ? { label: '✗', cls: 'bg-rose-100 text-rose-800 border-rose-300 font-bold', title: `3. ADH: Ditolak oleh ${adh.by || 'Administration Head'} ${adh.notes ? `("${adh.notes}")` : ''}` }
+                            : isAdhActive
+                            ? { label: '⏳', cls: 'bg-purple-100 text-purple-900 border-purple-300 animate-pulse font-bold shadow-2xs', title: '3. ADH: Sedang menunggu otorisasi final ADH' }
+                            : { label: '○', cls: 'bg-slate-50 text-slate-400 border-slate-200', title: '3. ADH: Menunggu giliran setelah GA/SPV' }
+
+                          // Security props
+                          const sec = stageInfo.sec || {}
+                          const secBadge = (sec.gate_status === 'in' || loan.status === 'completed')
+                            ? { label: '✓', cls: 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold', title: `4. Pos Security: Kendaraan telah kembali (${sec.in_by || 'Security'})` }
+                            : (sec.gate_status === 'out' || sec.out_time)
+                            ? { label: '🚗', cls: 'bg-blue-100 text-blue-800 border-blue-300 font-bold', title: `4. Pos Security: Mobil keluar pos (${sec.out_by || 'Security'})` }
+                            : loan.status === 'approved'
+                            ? { label: '🔑', cls: 'bg-sky-100 text-sky-800 border-sky-300 animate-pulse font-bold', title: '4. Pos Security: Otorisasi selesai, siap serah terima kunci' }
+                            : { label: '○', cls: 'bg-slate-50 text-slate-400 border-slate-200', title: '4. Pos Security: Menunggu otorisasi lengkap' }
+
+                          return (
+                            <div className="space-y-1.5">
+                              {/* 1. Status Terupdate & Spesifik */}
+                              <div>
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border shadow-2xs ${stageInfo.badgeClass}`}>
+                                  <span className={`w-2 h-2 rounded-full ${stageInfo.dotClass}`}></span>
+                                  <span>{stageInfo.title}</span>
                                 </span>
-                                {loan.approvals.spv?.status !== 'not_required' && (
-                                  <span 
-                                    title="2. Persetujuan SPV"
-                                    className={`px-1.5 py-0.5 rounded ${
-                                      loan.approvals.spv?.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
-                                      loan.approvals.spv?.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-teal-50 text-teal-700 border border-teal-200'
-                                    }`}
-                                  >
-                                    SPV {loan.approvals.spv?.status === 'approved' ? '✓' : loan.approvals.spv?.status === 'rejected' ? '✗' : '⏳'}
-                                  </span>
-                                )}
+                                <div className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[250px]" title={stageInfo.subtitle}>
+                                  {stageInfo.subtitle}
+                                </div>
+                              </div>
+
+                              {/* 2. Visual Alur Verifikasi Mini Stepper */}
+                              <div className="flex items-center gap-1 text-[10px] select-none pt-0.5 flex-wrap">
+                                {/* 1. GA */}
                                 <span 
-                                  title="3. Persetujuan ADH"
-                                  className={`px-1.5 py-0.5 rounded ${
-                                    loan.approvals.adh?.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
-                                    loan.approvals.adh?.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-purple-50 text-purple-700 border border-purple-200'
-                                  }`}
+                                  title={gaBadge.title}
+                                  className={`px-1.5 py-0.5 rounded border flex items-center gap-0.5 cursor-help transition ${gaBadge.cls}`}
                                 >
-                                  ADH {loan.approvals.adh?.status === 'approved' ? '✓' : loan.approvals.adh?.status === 'rejected' ? '✗' : '⏳'}
+                                  <span>GA</span>
+                                  <span>{gaBadge.label}</span>
+                                </span>
+
+                                <span className="text-slate-300 text-[9px]">➔</span>
+
+                                {/* 2. SPV */}
+                                {spv.status !== 'not_required' && (
+                                  <>
+                                    <span 
+                                      title={spvBadge.title}
+                                      className={`px-1.5 py-0.5 rounded border flex items-center gap-0.5 cursor-help transition ${spvBadge.cls}`}
+                                    >
+                                      <span>SPV</span>
+                                      <span>{spvBadge.label}</span>
+                                    </span>
+                                    <span className="text-slate-300 text-[9px]">➔</span>
+                                  </>
+                                )}
+
+                                {/* 3. ADH */}
+                                <span 
+                                  title={adhBadge.title}
+                                  className={`px-1.5 py-0.5 rounded border flex items-center gap-0.5 cursor-help transition ${adhBadge.cls}`}
+                                >
+                                  <span>ADH</span>
+                                  <span>{adhBadge.label}</span>
+                                </span>
+
+                                <span className="text-slate-300 text-[9px]">➔</span>
+
+                                {/* 4. Pos Security */}
+                                <span 
+                                  title={secBadge.title}
+                                  className={`px-1.5 py-0.5 rounded border flex items-center gap-0.5 cursor-help transition ${secBadge.cls}`}
+                                >
+                                  <span>Pos</span>
+                                  <span>{secBadge.label}</span>
                                 </span>
                               </div>
-                            )}
-                          </div>
-                        ) : isRejected ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                            <XCircle className="h-3 w-3 text-rose-600" /> Dibatalkan / Ditolak
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                            <Car className="h-3 w-3 text-blue-600" /> Sedang Dipinjam
-                          </span>
-                        )}
+                            </div>
+                          )
+                        })()}
                       </td>
 
                       {/* Aksi */}
@@ -1098,48 +1308,84 @@ export function LoanHistoryTable({
                 )}
               </div>
 
-              {/* Status Otorisasi */}
-              {detailLoan.approvals && (
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-                  <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                    Status Alur Otorisasi:
+              {/* Status Otorisasi & Alur Tahapan */}
+              {(() => {
+                const stage = getLoanStageDetails(detailLoan, formatDate)
+                return (
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2.5">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          Status Terupdate
+                        </span>
+                        <div className="mt-0.5">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${stage.badgeClass}`}>
+                            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
+                            {stage.statusLabel}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right text-[11px] text-slate-500">
+                        {stage.stepList.filter(s => s.status === 'done').length} dari {stage.stepList.length} tahap selesai
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                        Rincian Alur Verifikasi & Persetujuan:
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
+                        {stage.stepList.map((st, idx) => {
+                          const isDone = st.status === 'done'
+                          const isPending = st.status === 'pending'
+                          const isRejected = st.status === 'rejected'
+                          const isSkipped = st.status === 'skipped'
+
+                          return (
+                            <div
+                              key={idx}
+                              className={`p-2.5 rounded-lg border flex flex-col justify-between ${
+                                isDone ? 'bg-emerald-50/70 border-emerald-200' :
+                                isRejected ? 'bg-rose-50/70 border-rose-200' :
+                                isPending ? 'bg-amber-50/80 border-amber-300 ring-1 ring-amber-300/50' :
+                                isSkipped ? 'bg-slate-100/60 border-slate-200 opacity-60' :
+                                'bg-white border-slate-200 opacity-70'
+                              }`}
+                            >
+                              <div>
+                                <div className="flex items-center justify-between gap-1 mb-1">
+                                  <span className="text-[10px] font-bold uppercase text-slate-500">
+                                    {idx + 1}. {st.name}
+                                  </span>
+                                  <span className="text-xs">
+                                    {isDone ? '✓' : isRejected ? '✗' : isPending ? '⏳' : '○'}
+                                  </span>
+                                </div>
+                                <div className={`font-bold text-[11px] ${
+                                  isDone ? 'text-emerald-700' :
+                                  isRejected ? 'text-rose-700' :
+                                  isPending ? 'text-amber-700 font-extrabold' :
+                                  'text-slate-500'
+                                }`}>
+                                  {st.info}
+                                </div>
+                              </div>
+
+                              {(st.by || st.at || st.notes) && (
+                                <div className="mt-2 pt-1.5 border-t border-slate-200/60 text-[10px] text-slate-500 space-y-0.5">
+                                  {st.by && <div>Oleh: <span className="font-semibold text-slate-700">{st.by}</span></div>}
+                                  {st.at && <div>Waktu: <span>{st.at}</span></div>}
+                                  {st.notes && <div className="italic text-slate-600 line-clamp-2">"{st.notes}"</div>}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                    <div className="p-2 rounded-lg bg-white border border-slate-200">
-                      <div className="text-[10px] text-slate-400 font-bold">1. VERIFIKASI GA</div>
-                      <div className={`mt-0.5 font-bold ${
-                        detailLoan.approvals.ga?.status === 'approved' ? 'text-emerald-600' :
-                        detailLoan.approvals.ga?.status === 'rejected' ? 'text-rose-600' : 'text-amber-600'
-                      }`}>
-                        {detailLoan.approvals.ga?.status === 'approved' ? 'Disetujui ✓' :
-                         detailLoan.approvals.ga?.status === 'rejected' ? 'Ditolak ✗' : 'Menunggu ⏳'}
-                      </div>
-                    </div>
-                    <div className="p-2 rounded-lg bg-white border border-slate-200">
-                      <div className="text-[10px] text-slate-400 font-bold">2. PERSETUJUAN SPV</div>
-                      <div className={`mt-0.5 font-bold ${
-                        detailLoan.approvals.spv?.status === 'not_required' ? 'text-slate-400' :
-                        detailLoan.approvals.spv?.status === 'approved' ? 'text-emerald-600' :
-                        detailLoan.approvals.spv?.status === 'rejected' ? 'text-rose-600' : 'text-amber-600'
-                      }`}>
-                        {detailLoan.approvals.spv?.status === 'not_required' ? 'Tidak Perlu' :
-                         detailLoan.approvals.spv?.status === 'approved' ? 'Disetujui ✓' :
-                         detailLoan.approvals.spv?.status === 'rejected' ? 'Ditolak ✗' : 'Menunggu ⏳'}
-                      </div>
-                    </div>
-                    <div className="p-2 rounded-lg bg-white border border-slate-200">
-                      <div className="text-[10px] text-slate-400 font-bold">3. OTORISASI ADH</div>
-                      <div className={`mt-0.5 font-bold ${
-                        detailLoan.approvals.adh?.status === 'approved' ? 'text-emerald-600' :
-                        detailLoan.approvals.adh?.status === 'rejected' ? 'text-rose-600' : 'text-amber-600'
-                      }`}>
-                        {detailLoan.approvals.adh?.status === 'approved' ? 'Disetujui ✓' :
-                         detailLoan.approvals.adh?.status === 'rejected' ? 'Ditolak ✗' : 'Menunggu ⏳'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+                )
+              })()}
 
               {/* Tombol Tutup */}
               <div className="pt-2 flex justify-end">
