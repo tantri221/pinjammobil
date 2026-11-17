@@ -372,6 +372,7 @@ export const api = {
         const buyFuelRaw = buyFuelMatch ? buyFuelMatch[1].trim() : ''
         const buy_fuel = buyFuelRaw.startsWith('YA') ? 'YA' : 'TIDAK'
         const fuel_amount = buyFuelRaw.includes('- Rp') ? buyFuelRaw.split('- Rp')[1].trim() : ''
+        const fuel_cost = buy_fuel === 'YA' && fuel_amount ? (parseInt(fuel_amount.replace(/\D/g, ''), 10) || 0) : (Number(item.fuel_cost) || 0)
 
         let cleanNote = item.notes?.split('__APPROVAL_DATA__:')[0]?.split('__SECURITY_DATA__:')[0]?.trim() || ''
         cleanNote = cleanNote
@@ -406,6 +407,7 @@ export const api = {
           start_fuel,
           buy_fuel,
           fuel_amount,
+          fuel_cost,
           displayNotes: cleanNote,
           approvals: this.parseLoanApprovals(item),
           security: this.parseSecurityData(item)

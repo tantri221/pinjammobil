@@ -13,6 +13,7 @@ import { ProfileModal } from './components/ProfileModal'
 import { ResetLoanHistoryModal } from './components/ResetLoanHistoryModal'
 import { PicContactsModal } from './components/PicContactsModal'
 import { WhatsAppFollowUpModal } from './components/WhatsAppFollowUpModal'
+import { ReportView } from './components/ReportView'
 import { LoginPage } from './components/LoginPage'
 import { api } from './services/api'
 import { isLoanOwnedByUser } from './lib/utils'
@@ -27,7 +28,8 @@ import {
   ShieldCheck,
   Menu,
   Lock,
-  ArrowDownLeft
+  ArrowDownLeft,
+  BarChart3
 } from 'lucide-react'
 
 const AUTH_USER_KEY = 'pinjammobil_auth_user'
@@ -647,6 +649,7 @@ export default function App() {
                   {activeTab === 'loans' && 'Histori & Transaksi Peminjaman Unit'}
                   {activeTab === 'approvals' && 'Pusat Verifikasi & Persetujuan'}
                   {activeTab === 'security' && (isLockedToReturn ? 'Pemeriksaan Pengembalian Armada (Pos Security)' : 'Pos Pengecekan Security')}
+                  {activeTab === 'reports' && 'Laporan Penggunaan Armada & Rekap BBM'}
                 </h1>
                 <p className="text-[11px] sm:text-sm text-slate-500 mt-0.5 leading-relaxed">
                   {activeTab === 'vehicles' && 'Daftar armada kendaraan operasional yang tersedia beserta status terkini.'}
@@ -655,6 +658,7 @@ export default function App() {
                   {activeTab === 'security' && (isLockedToReturn
                     ? 'Serahkan kendaraan ke Petugas Security di pos gerbang untuk pencatatan KM akhir & otorisasi pengembalian.'
                     : 'Pemeriksaan fisik, kilometer, serta serah terima kunci untuk Mobil Keluar & Mobil Kembali.')}
+                  {activeTab === 'reports' && 'Rekapitulasi total pembelian BBM per unit kendaraan dan intensitas penggunaan berdasarkan peruntukan.'}
                 </p>
               </div>
 
@@ -773,6 +777,14 @@ export default function App() {
               onRefresh={loadData}
               isLockedToReturn={isLockedToReturn}
               activeOngoingLoan={activeOngoingLoan}
+            />
+          )}
+
+          {/* TAB 5: LAPORAN & REKAP BBM */}
+          {activeTab === 'reports' && (
+            <ReportView
+              loans={loans}
+              vehicles={vehicles}
             />
           )}
 

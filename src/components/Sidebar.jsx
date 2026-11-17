@@ -270,6 +270,25 @@ export function Sidebar({
             ) : null}
           </button>
 
+          {/* Menu 5: Laporan & Rekap BBM */}
+          <button
+            type="button"
+            onClick={() => handleNavClick('reports')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold transition flex items-center justify-between cursor-pointer ${
+              activeTab === 'reports'
+                ? 'bg-sky-600 text-white shadow-md'
+                : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              <span>Laporan & Rekap BBM</span>
+            </div>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30 font-bold">
+              Rekap
+            </span>
+          </button>
+
           {/* Quick Action: Tambah Pinjam Baru (Terkunci jika sedang membawa armada) */}
           {isLockedToReturn ? (
             <button

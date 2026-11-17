@@ -239,25 +239,47 @@ export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVeh
 
           {/* Input Nominal Pembelian BBM jika pilihannya YA */}
           {formData.buy_fuel === 'YA' && (
-            <div className="pt-2.5 border-t border-slate-200 animate-in fade-in duration-200 space-y-1">
-              <label className="block text-xs font-bold text-emerald-800">
-                Nominal Pembelian BBM <span className="text-red-500">*</span>
-              </label>
-              <Select
-                required
-                value={formData.fuel_amount}
-                onChange={e => setFormData({ ...formData, fuel_amount: e.target.value })}
-                className="bg-white border-emerald-300 text-emerald-950 font-bold"
-              >
-                <option value="50.000">Rp 50.000</option>
-                <option value="100.000">Rp 100.000</option>
-                <option value="150.000">Rp 150.000</option>
-                <option value="200.000">Rp 200.000</option>
-                <option value="250.000">Rp 250.000</option>
-                <option value="300.000">Rp 300.000</option>
-                <option value="350.000">Rp 350.000</option>
-                <option value="400.000">Rp 400.000</option>
-              </Select>
+            <div className="pt-2.5 border-t border-slate-200 animate-in fade-in duration-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-emerald-800">
+                  Nominal Pembelian BBM <span className="text-red-500">*</span>
+                </label>
+                <span className="text-[10px] text-slate-500">Pilih cepat atau ketik nominal</span>
+              </div>
+
+              {/* Quick Pills */}
+              <div className="flex flex-wrap gap-1.5">
+                {['50.000', '100.000', '150.000', '200.000', '250.000', '300.000', '500.000'].map(val => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, fuel_amount: val })}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
+                      formData.fuel_amount === val
+                        ? 'bg-emerald-700 text-white font-bold shadow-xs'
+                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    Rp {val}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-400">Rp</span>
+                <Input
+                  type="text"
+                  required
+                  placeholder="Ketik nominal, misal: 150.000"
+                  value={formData.fuel_amount}
+                  onChange={e => {
+                    const raw = e.target.value.replace(/\D/g, '')
+                    const formatted = raw ? Number(raw).toLocaleString('id-ID') : ''
+                    setFormData({ ...formData, fuel_amount: formatted })
+                  }}
+                  className="pl-9 font-bold font-mono text-emerald-950 bg-white border-emerald-300"
+                />
+              </div>
             </div>
           )}
         </div>
