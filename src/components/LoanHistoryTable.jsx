@@ -16,7 +16,11 @@ import {
   ChevronRight,
   Search,
   RotateCcw,
-  MessageCircle
+  MessageCircle,
+  ShieldCheck,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Eye
 } from 'lucide-react'
 import { Modal } from './ui/Modal'
 import { isTestDriveLoan } from '../lib/utils'
@@ -133,6 +137,9 @@ export function LoanHistoryTable({
   const [isCancelling, setIsCancelling] = useState(false)
   const [cancelError, setCancelError] = useState('')
 
+  // State Modal Detail Peminjaman & Informasi Pos Security
+  const [detailLoan, setDetailLoan] = useState(null)
+
   // State Filter Harian & Tools Pilihan Tanggal
   const [selectedDate, setSelectedDate] = useState(getTodayDateString())
   const [filterMode, setFilterMode] = useState('daily') // 'daily' | 'all'
@@ -176,7 +183,8 @@ export function LoanHistoryTable({
         (loan.license_plate && loan.license_plate.toLowerCase().includes(q)) ||
         (loan.division && loan.division.toLowerCase().includes(q)) ||
         (loan.purpose && loan.purpose.toLowerCase().includes(q)) ||
-        (loan.destination && loan.destination.toLowerCase().includes(q))
+        (loan.destination && loan.destination.toLowerCase().includes(q)) ||
+        (loan.security?.out_by && loan.security.out_by.toLowerCase().includes(q))
       )
     })
 
@@ -426,6 +434,7 @@ export function LoanHistoryTable({
                 <th className="py-3 px-4">Peminjam</th>
                 <th className="py-3 px-4">Unit Mobil</th>
                 <th className="py-3 px-4">Jadwal Pinjam</th>
+                <th className="py-3 px-4">Mobil Keluar & Pos Security</th>
                 <th className="py-3 px-4">Tujuan / Keperluan</th>
                 <th className="py-3 px-4">Status & Verifikasi</th>
                 <th className="py-3 px-4 text-right">Aksi</th>
@@ -434,7 +443,7 @@ export function LoanHistoryTable({
             <tbody className="divide-y divide-slate-100 font-normal">
               {filteredLoans.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="py-12 text-center text-slate-500">
+                  <td colSpan="7" className="py-12 text-center text-slate-500">
                     <CalendarDays className="h-10 w-10 mx-auto mb-3 text-slate-300 stroke-1" />
                     <div className="font-bold text-slate-700 text-sm">
                       {filterMode === 'daily' 
@@ -483,6 +492,7 @@ export function LoanHistoryTable({
                   const isRejected = loan.status === 'rejected'
                   const isPending = loan.status === 'pending'
                   const isApproved = loan.status === 'approved'
+                  const sec = loan.security || {}
 
                   // Izin pembatalan: Admin, GA, SPV, ADH, atau pemohon itu sendiri
                   const isMyLoan = currentUser?.name && loan.borrower_name?.toLowerCase() === currentUser.name.toLowerCase()
@@ -542,6 +552,72 @@ export function LoanHistoryTable({
                           <span className="text-[10px] font-bold text-slate-400">Kembali:</span>
                           <span>{formatDate(loan.end_date)}</span>
                         </div>
+                      </td>
+
+                      {/* Mobil Keluar & Data Pos Security */}
+                      <td className="py-3.5 px-4 min-w-[200px]">
+                        {sec.out_time ? (
+                          <div className="space-y-1">
+                            {/* Waktu Mobil Keluar */}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                <ArrowUpRight className="h-3 w-3 text-amber-600" />
+                                <span>Keluar: {formatDate(sec.out_time)}</span>
+                              </span>
+                            </div>
+
+                            {/* Petugas Security yang Bertugas */}
+                            <div className="flex items-center gap-1.5 text-xs">
+                              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                              <span className="font-bold text-slate-800">
+                                {sec.out_by || 'Petugas Security'}
+                              </span>
+                            </div>
+
+                            {/* Odometer KM & Catatan Fisik */}
+                            <div className="flex items-center gap-1.5 text-[11px] font-mono">
+                              <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200 font-semibold">
+                                KM: {(sec.out_km || loan.start_mileage || 0).toLocaleString('id-ID')}
+                              </span>
+                              {sec.out_notes && (
+                                <span className="text-[10px] italic text-slate-500 truncate max-w-[130px]" title={sec.out_notes}>
+                                  {sec.out_notes}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Info Kembali jika sudah masuk pos gerbang */}
+                            {sec.in_time && (
+                              <div className="text-[10px] text-slate-600 flex items-center gap-1 pt-0.5 border-t border-slate-100">
+                                <span className="text-emerald-700 font-bold">✓ Kembali:</span>
+                                <span>{formatDate(sec.in_time)}</span>
+                                {sec.in_by && (
+                                  <span className="text-slate-500">({sec.in_by})</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ) : isApproved ? (
+                          <div className="space-y-0.5">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                              <Clock className="h-3 w-3 text-sky-500" />
+                              <span>Siap di Pos Keluar</span>
+                            </span>
+                            <div className="text-[10px] text-slate-400">Menunggu konfirmasi security</div>
+                          </div>
+                        ) : isPending ? (
+                          <div className="text-[11px] text-slate-400 italic">
+                            Menunggu Approval
+                          </div>
+                        ) : isRejected ? (
+                          <div className="text-[11px] text-slate-400">
+                            -
+                          </div>
+                        ) : (
+                          <div className="text-[11px] text-slate-500 font-mono">
+                            {(loan.start_mileage || 0).toLocaleString('id-ID')} KM
+                          </div>
+                        )}
                       </td>
 
                       {/* Keperluan */}
@@ -615,6 +691,16 @@ export function LoanHistoryTable({
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           
+                          {/* Tombol Detail & Log Security */}
+                          <button
+                            type="button"
+                            onClick={() => setDetailLoan(loan)}
+                            className="p-1.5 text-slate-600 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition cursor-pointer border border-slate-200 shadow-2xs"
+                            title="Lihat rincian lengkap & data pos security"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </button>
+
                           {/* Tombol Kembalikan untuk yang Approved */}
                           {isApproved && (
                             <button
@@ -845,6 +931,204 @@ export function LoanHistoryTable({
             </div>
           </form>
         )}
+      </Modal>
+
+      {/* Modal Detail Histori Peminjaman & Data Pos Security */}
+      <Modal
+        isOpen={Boolean(detailLoan)}
+        onClose={() => setDetailLoan(null)}
+        title="Rincian Peminjaman Kendaraan"
+        description="Detail lengkap peminjaman, verifikasi, serta riwayat pemeriksaan pos security."
+      >
+        {detailLoan && (() => {
+          const dSec = detailLoan.security || {}
+          return (
+            <div className="space-y-4 text-xs sm:text-sm">
+              {/* Card Peminjam & Unit */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                  <div>
+                    <div className="font-bold text-slate-900 text-sm">{detailLoan.borrower_name}</div>
+                    <div className="text-xs text-slate-500">Divisi {detailLoan.division}</div>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-mono text-xs font-bold text-slate-800 bg-white px-2 py-1 rounded border border-slate-300">
+                      {detailLoan.license_plate}
+                    </span>
+                    <div className="text-[11px] text-slate-500 mt-0.5">{detailLoan.vehicle_name}</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Tujuan:</span>
+                    <span className="font-medium text-slate-800">{detailLoan.destination || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Keperluan:</span>
+                    <span className="font-medium text-slate-800">{detailLoan.purpose || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Jadwal Mulai:</span>
+                    <span className="font-medium text-slate-800">{formatDate(detailLoan.start_date)}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Jadwal Selesai:</span>
+                    <span className="font-medium text-slate-800">{formatDate(detailLoan.end_date)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Box Informasi Pos Security & Mobil Keluar */}
+              <div className="p-3.5 rounded-xl bg-emerald-50/50 border border-emerald-200 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-emerald-900 text-xs sm:text-sm">
+                    <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                    <span>Laporan Pos Security & Mobil Keluar</span>
+                  </div>
+                  {dSec.out_time ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      Tercatat di Pos Gerbang
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-300">
+                      Belum Checkout Security
+                    </span>
+                  )}
+                </div>
+
+                {dSec.out_time ? (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-white p-3 rounded-lg border border-emerald-100">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">Waktu Mobil Keluar:</span>
+                        <span className="font-bold text-slate-800 flex items-center gap-1">
+                          <ArrowUpRight className="h-3.5 w-3.5 text-amber-600" />
+                          {formatDate(dSec.out_time)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">Petugas Security Bertugas:</span>
+                        <span className="font-bold text-emerald-700 flex items-center gap-1">
+                          <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                          {dSec.out_by || 'Petugas Security'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">Kilometer (KM) Keluar:</span>
+                        <span className="font-mono font-bold text-slate-800">
+                          {(dSec.out_km || detailLoan.start_mileage || 0).toLocaleString('id-ID')} KM
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">Kondisi Fisik / Catatan:</span>
+                        <span className="text-slate-700 italic">
+                          {dSec.out_notes || 'Kondisi kendaraan baik saat serah terima.'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Jika Sudah Kembali */}
+                    {dSec.in_time && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-white p-3 rounded-lg border border-emerald-100">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">Waktu Mobil Kembali:</span>
+                          <span className="font-bold text-slate-800 flex items-center gap-1">
+                            <ArrowDownLeft className="h-3.5 w-3.5 text-sky-600" />
+                            {formatDate(dSec.in_time)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">Petugas Security Penerima:</span>
+                          <span className="font-bold text-sky-700 flex items-center gap-1">
+                            <ShieldCheck className="h-3.5 w-3.5 text-sky-600" />
+                            {dSec.in_by || 'Petugas Security'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">Kilometer (KM) Kembali:</span>
+                          <span className="font-mono font-bold text-slate-800">
+                            {(dSec.in_km || detailLoan.end_mileage || 0).toLocaleString('id-ID')} KM
+                            {dSec.in_km && dSec.out_km && (
+                              <span className="ml-1 text-[11px] text-emerald-600 font-normal">
+                                (Jarak: {(Number(dSec.in_km) - Number(dSec.out_km)).toLocaleString('id-ID')} KM)
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">Catatan Masuk / BBM:</span>
+                          <span className="text-slate-700">
+                            {dSec.in_fuel ? `BBM: ${dSec.in_fuel}` : ''} {dSec.in_notes ? `(${dSec.in_notes})` : ''}
+                            {!dSec.in_fuel && !dSec.in_notes && 'Kunci & STNK telah diterima.'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-white p-3 rounded-lg border border-slate-200 text-xs text-slate-500">
+                    Kendaraan ini belum melakukan proses serah terima kunci / checkout di Pos Security gerbang keluar.
+                  </div>
+                )}
+              </div>
+
+              {/* Status Otorisasi */}
+              {detailLoan.approvals && (
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                  <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                    Status Alur Otorisasi:
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="p-2 rounded-lg bg-white border border-slate-200">
+                      <div className="text-[10px] text-slate-400 font-bold">1. VERIFIKASI GA</div>
+                      <div className={`mt-0.5 font-bold ${
+                        detailLoan.approvals.ga?.status === 'approved' ? 'text-emerald-600' :
+                        detailLoan.approvals.ga?.status === 'rejected' ? 'text-rose-600' : 'text-amber-600'
+                      }`}>
+                        {detailLoan.approvals.ga?.status === 'approved' ? 'Disetujui ✓' :
+                         detailLoan.approvals.ga?.status === 'rejected' ? 'Ditolak ✗' : 'Menunggu ⏳'}
+                      </div>
+                    </div>
+                    <div className="p-2 rounded-lg bg-white border border-slate-200">
+                      <div className="text-[10px] text-slate-400 font-bold">2. PERSETUJUAN SPV</div>
+                      <div className={`mt-0.5 font-bold ${
+                        detailLoan.approvals.spv?.status === 'not_required' ? 'text-slate-400' :
+                        detailLoan.approvals.spv?.status === 'approved' ? 'text-emerald-600' :
+                        detailLoan.approvals.spv?.status === 'rejected' ? 'text-rose-600' : 'text-amber-600'
+                      }`}>
+                        {detailLoan.approvals.spv?.status === 'not_required' ? 'Tidak Perlu' :
+                         detailLoan.approvals.spv?.status === 'approved' ? 'Disetujui ✓' :
+                         detailLoan.approvals.spv?.status === 'rejected' ? 'Ditolak ✗' : 'Menunggu ⏳'}
+                      </div>
+                    </div>
+                    <div className="p-2 rounded-lg bg-white border border-slate-200">
+                      <div className="text-[10px] text-slate-400 font-bold">3. OTORISASI ADH</div>
+                      <div className={`mt-0.5 font-bold ${
+                        detailLoan.approvals.adh?.status === 'approved' ? 'text-emerald-600' :
+                        detailLoan.approvals.adh?.status === 'rejected' ? 'text-rose-600' : 'text-amber-600'
+                      }`}>
+                        {detailLoan.approvals.adh?.status === 'approved' ? 'Disetujui ✓' :
+                         detailLoan.approvals.adh?.status === 'rejected' ? 'Ditolak ✗' : 'Menunggu ⏳'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tombol Tutup */}
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setDetailLoan(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-900 text-white transition cursor-pointer"
+                >
+                  Tutup Rincian
+                </button>
+              </div>
+            </div>
+          )
+        })()}
       </Modal>
     </>
   )
