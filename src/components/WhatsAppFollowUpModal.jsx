@@ -8,14 +8,15 @@ import {
   Car, 
   Calendar, 
   MapPin, 
-  CheckCircle2, 
   Clock, 
   AlertCircle, 
   ExternalLink,
   Settings,
-  ChevronRight,
   Copy,
-  Check
+  Check,
+  ShieldCheck,
+  CheckCircle2,
+  Lock
 } from 'lucide-react'
 import { isTestDriveLoan } from '../lib/utils'
 
@@ -34,99 +35,76 @@ export function WhatsAppFollowUpModal({
   isOpen,
   onClose,
   loan,
+  stage = 'ga', // 'ga' | 'spv' | 'adh'
   picContacts,
+  onSendWaFollowUp,
   onOpenEditPicContacts
 }) {
-  const [selectedStage, setSelectedStage] = useState('auto')
   const [customNote, setCustomNote] = useState('')
   const [copied, setCopied] = useState(false)
+  const [isSending, setIsSending] = useState(false)
 
-  // Tentukan tahap yang sedang aktif/menunggu verifikasi
-  const activeStageInfo = useMemo(() => {
-    if (!loan) return null
+  // Pastikan target stage yang digunakan (default: 'ga')
+  const currentStage = stage || 'ga'
 
-    const approvals = loan.approvals || {
-      ga: { status: 'pending' },
-      spv: { status: 'pending' },
-      adh: { status: 'pending' }
-    }
-    const isTD = isTestDriveLoan(loan, loan.vehicles)
-
-    // 1. GA masih pending
-    if (approvals.ga?.status === 'pending') {
-      return {
-        stage: 'ga',
-        label: 'Verifikasi GA',
-        roleTitle: 'General Affairs (GA)',
-        description: 'Tahap 1: Verifikasi ketersediaan armada',
-        contact: picContacts?.ga
-      }
-    }
-
-    // 2. SPV masih pending (khusus Test Drive)
-    if (isTD && approvals.ga?.status === 'approved' && approvals.spv?.status === 'pending') {
-      return {
-        stage: 'spv',
-        label: 'Persetujuan SPV',
-        roleTitle: 'Supervisor (SPV)',
-        description: 'Tahap 2: Persetujuan peminjaman unit Test Drive',
-        contact: picContacts?.spv
-      }
-    }
-
-    // 3. ADH masih pending (tahap akhir)
-    const gaDone = approvals.ga?.status === 'approved'
-    const spvDone = !isTD || approvals.spv?.status === 'approved' || approvals.spv?.status === 'not_required'
-    if (gaDone && spvDone && approvals.adh?.status === 'pending') {
-      return {
-        stage: 'adh',
-        label: 'Otorisasi ADH',
-        roleTitle: 'Administration Head (ADH)',
-        description: 'Tahap 3: Otorisasi final peminjaman kendaraan',
-        contact: picContacts?.adh
-      }
-    }
-
-    // Default jika sudah selesai atau lainnya
-    return {
-      stage: 'ga',
-      label: 'Verifikasi GA',
-      roleTitle: 'General Affairs (GA)',
-      description: 'Tahap 1: Verifikasi armada',
-      contact: picContacts?.ga
-    }
-  }, [loan, picContacts])
-
-  // Tahap yang sedang dipilih pengguna (default mengikuti tahap aktif saat ini)
-  const currentTargetStage = selectedStage === 'auto' ? (activeStageInfo?.stage || 'ga') : selectedStage
-
+  // Data PIC spesifik untuk tahapan ini
   const targetPic = useMemo(() => {
-    if (currentTargetStage === 'spv') {
+    if (currentStage === 'spv') {
       return {
         stage: 'spv',
+        stepNumber: '2',
         roleTitle: 'Supervisor (SPV)',
-        name: picContacts?.spv?.name || 'Bapak/Ibu SPV',
+        stageActionName: 'Persetujuan SPV (Unit Test Drive)',
+        name: picContacts?.spv?.name || 'PIC Supervisor',
         phone: picContacts?.spv?.phone || '',
         formattedPhone: formatWhatsAppPhone(picContacts?.spv?.phone)
       }
     }
-    if (currentTargetStage === 'adh') {
+    if (currentStage === 'adh') {
       return {
         stage: 'adh',
+        stepNumber: '3',
         roleTitle: 'Administration Head (ADH)',
-        name: picContacts?.adh?.name || 'Bapak/Ibu ADH',
+        stageActionName: 'Otorisasi Final ADH',
+        name: picContacts?.adh?.name || 'PIC Administration Head',
         phone: picContacts?.adh?.phone || '',
         formattedPhone: formatWhatsAppPhone(picContacts?.adh?.phone)
       }
     }
     return {
       stage: 'ga',
+      stepNumber: '1',
       roleTitle: 'General Affairs (GA)',
-      name: picContacts?.ga?.name || 'Bapak/Ibu GA',
+      stageActionName: 'Verifikasi Ketersediaan Armada GA',
+      name: picContacts?.ga?.name || 'PIC General Affairs',
       phone: picContacts?.ga?.phone || '',
       formattedPhone: formatWhatsAppPhone(picContacts?.ga?.phone)
     }
-  }, [currentTargetStage, picContacts])
+  }, [currentStage, picContacts])
+
+  // Cek apakah pesan WA follow up untuk tahapan ini sudah pernah dikirim (Maksimal 1 kali)
+  const sentInfo = useMemo(() => {
+    if (!loan) return { isSent: false, sentAt: null, sentBy: null }
+    const stageApproval = loan.approvals?.[currentStage] || {}
+    let sentAt = stageApproval.wa_sent_at || null
+    let sentBy = stageApproval.wa_sent_by || null
+
+    if (!sentAt) {
+      try {
+        const localSent = localStorage.getItem(`pinjammobil_wa_sent_${loan.id}_${currentStage}`)
+        if (localSent) {
+          sentAt = localSent
+          sentBy = 'Sistem Lokal'
+        }
+      } catch (e) {}
+    }
+
+    return {
+      isSent: Boolean(sentAt),
+      sentAt,
+      sentBy
+    }
+  }, [loan, currentStage])
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-'
@@ -144,26 +122,21 @@ export function WhatsAppFollowUpModal({
     }
   }
 
-  // Generate template pesan WhatsApp yang rapi dan terstruktur
+  // Generate teks pesan WhatsApp yang rapi dan profesional khusus untuk PIC ini
   const generatedMessage = useMemo(() => {
     if (!loan) return ''
 
     const isTD = isTestDriveLoan(loan, loan.vehicles)
-    const stageName = currentTargetStage === 'ga' 
-      ? 'Verifikasi General Affairs (GA)' 
-      : currentTargetStage === 'spv' 
-        ? 'Persetujuan Supervisor (SPV)' 
-        : 'Otorisasi Administration Head (ADH)'
 
-    let msg = `*FOLLOW UP PENGAJUAN PINJAM MOBIL*\n`
-    msg += `Sistem PinjamMobil Operasional\n\n`
+    let msg = `*FOLLOW UP VERIFIKASI & PERSETUJUAN PINJAM MOBIL*\n`
+    msg += `Sistem Informasi PinjamMobil Operasional\n\n`
     msg += `Halo ${targetPic.name || targetPic.roleTitle},\n`
-    msg += `Mohon bantuannya untuk memproses pengajuan peminjaman kendaraan berikut yang saat ini sedang menunggu *${stageName}*:\n\n`
-    msg += `📋 *Rincian Pengajuan:*\n`
-    msg += `• *Peminjam:* ${loan.borrower_name || '-'} (Divisi ${loan.division || '-'})\n`
-    msg += `• *Armada:* ${loan.vehicle_name || 'Mobil'} (${loan.license_plate || '-'})${isTD ? ' [Unit Test Drive]' : ''}\n`
-    msg += `• *Keperluan:* ${loan.purpose || '-'}\n`
-    msg += `• *Tujuan:* ${loan.destination || '-'}\n`
+    msg += `Mohon kesediaannya untuk memproses pengajuan peminjaman kendaraan berikut yang saat ini sedang menunggu *${targetPic.stageActionName}*:\n\n`
+    msg += `📋 *Rincian Pengajuan Tiket:*\n`
+    msg += `• *Nama Peminjam:* ${loan.borrower_name || '-'} (Divisi ${loan.division || '-'})\n`
+    msg += `• *Unit Armada:* ${loan.vehicle_name || 'Mobil'} (${loan.license_plate || '-'})${isTD ? ' [Unit Test Drive]' : ''}\n`
+    msg += `• *Peruntukan:* ${loan.purpose || '-'}\n`
+    msg += `• *Kota / Tujuan:* ${loan.destination || '-'}\n`
     msg += `• *Jadwal Pakai:* ${formatDate(loan.start_date)} s/d ${formatDate(loan.end_date)}\n`
     
     if (loan.buy_fuel === 'YA') {
@@ -174,15 +147,17 @@ export function WhatsAppFollowUpModal({
       msg += `• *Catatan Tambahan:* ${customNote.trim()}\n`
     }
 
-    msg += `\nMohon kesediaannya untuk membuka web aplikasi PinjamMobil dan memproses verifikasi / persetujuan tiket tersebut.\n\n`
+    msg += `\nMohon untuk membuka aplikasi web PinjamMobil dan memproses verifikasi / persetujuan tiket tersebut.\n\n`
     msg += `Terima kasih atas bantuan dan kerjasamanya. 🙏`
 
     return msg
-  }, [loan, targetPic, currentTargetStage, customNote])
+  }, [loan, targetPic, customNote])
 
   if (!loan) return null
 
-  const handleSendWhatsApp = () => {
+  const handleExecuteSendWhatsApp = async () => {
+    if (sentInfo.isSent) return
+
     if (!targetPic.formattedPhone) {
       if (onOpenEditPicContacts) {
         onOpenEditPicContacts()
@@ -190,8 +165,24 @@ export function WhatsAppFollowUpModal({
       return
     }
 
-    const url = `https://api.whatsapp.com/send?phone=${targetPic.formattedPhone}&text=${encodeURIComponent(generatedMessage)}`
-    window.open(url, '_blank')
+    setIsSending(true)
+    try {
+      // 1. Catat bahwa WA follow up telah dikirim ke database Supabase (Maksimal 1 kali)
+      if (onSendWaFollowUp) {
+        await onSendWaFollowUp(loan.id, currentStage)
+      }
+
+      // 2. Buka jendela WhatsApp
+      const url = `https://api.whatsapp.com/send?phone=${targetPic.formattedPhone}&text=${encodeURIComponent(generatedMessage)}`
+      window.open(url, '_blank')
+
+      // 3. Tutup modal setelah jeda singkat
+      setTimeout(() => {
+        onClose()
+      }, 600)
+    } finally {
+      setIsSending(false)
+    }
   }
 
   const handleCopyMessage = () => {
@@ -201,188 +192,97 @@ export function WhatsAppFollowUpModal({
   }
 
   const isTD = isTestDriveLoan(loan, loan.vehicles)
-  const approvals = loan.approvals || { ga: {}, spv: {}, adh: {} }
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="📲 Kirim WhatsApp Follow Up Persetujuan"
-      description="Kirim pesan pengingat langsung ke nomor WhatsApp PIC sesuai alur verifikasi yang sedang berjalan"
-      maxWidth="max-w-2xl"
+      title={`📲 Follow Up WhatsApp: ${targetPic.roleTitle}`}
+      description={`Kirim pesan pengingat ke PIC ${targetPic.roleTitle} untuk memproses ${targetPic.stageActionName}`}
+      maxWidth="max-w-xl"
     >
-      <div className="p-6 space-y-5">
+      <div className="p-6 space-y-4">
         
-        {/* Ringkasan Tiket Peminjaman */}
-        <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl text-white shadow-sm space-y-2">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-white text-sm">{loan.borrower_name}</span>
-              <span className="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-medium border border-slate-700">
-                Divisi {loan.division}
-              </span>
-              <span className="text-slate-500">•</span>
-              <span className="text-xs text-sky-400 font-semibold flex items-center gap-1">
-                <Car className="w-3.5 h-3.5" />
-                {loan.vehicle_name} ({loan.license_plate})
-              </span>
+        {/* Banner Peringatan jika sudah pernah dikirim (Batas 1 Kali) */}
+        {sentInfo.isSent ? (
+          <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-xl flex items-start gap-2.5 text-xs text-emerald-900 shadow-xs">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            <div>
+              <div className="font-bold text-emerald-800">
+                Pesan Follow Up WhatsApp Sudah Pernah Dikirim (1x)
+              </div>
+              <p className="text-[11px] text-emerald-700 mt-0.5">
+                Pengingat untuk tahapan ini telah dikirim pada{' '}
+                <strong>{formatDate(sentInfo.sentAt)}</strong>
+                {sentInfo.sentBy ? ` oleh ${sentInfo.sentBy}` : ''}. Pengiriman WA follow up dibatasi 1 kali saja agar tidak terjadi pengiriman berulang.
+              </p>
             </div>
-            
-            {/* Status Aktif Saat Ini */}
-            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              <span>Sedang Menunggu: {activeStageInfo?.label || 'Verifikasi'}</span>
+          </div>
+        ) : (
+          <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl flex items-center justify-between text-xs text-sky-900">
+            <span className="flex items-center gap-1.5 font-medium">
+              <Clock className="w-3.5 h-3.5 text-sky-600" />
+              <span>Status: Menunggu {targetPic.stageActionName}</span>
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-300">
+              Batas: 1 Kali Kirim
             </span>
           </div>
+        )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-300 pt-1 border-t border-slate-800/80">
-            <div className="flex items-center gap-1.5 truncate">
-              <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="truncate">{formatDate(loan.start_date)} s/d {formatDate(loan.end_date)}</span>
-            </div>
-            <div className="flex items-center gap-1.5 truncate">
-              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="truncate">{loan.destination} ({loan.purpose})</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Pemilihan PIC Tujuan Sesuai Alur Verifikasi */}
-        <div className="space-y-2">
+        {/* Kartu Informasi PIC Tujuan (Khusus untuk tahapan ini saja, tanpa tab PIC lain) */}
+        <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl text-white shadow-sm space-y-3">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-              <span>Pilih PIC Tujuan Follow Up:</span>
-              <span className="text-[10px] font-normal text-slate-500">(Auto-Routing sesuai alur)</span>
-            </label>
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-lg bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 font-bold shrink-0">
+                <PhoneCall className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
+                  Penerima Follow Up • Tahap {targetPic.stepNumber}
+                </span>
+                <h4 className="text-sm font-bold text-white">{targetPic.name}</h4>
+              </div>
+            </div>
 
             {onOpenEditPicContacts && (
               <button
                 type="button"
                 onClick={onOpenEditPicContacts}
-                className="text-[11px] text-sky-600 hover:text-sky-700 font-semibold flex items-center gap-1 cursor-pointer"
+                className="text-[11px] text-sky-400 hover:text-sky-300 font-semibold flex items-center gap-1 cursor-pointer bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-lg border border-slate-700 transition"
               >
                 <Settings className="w-3 h-3" />
-                <span>Atur No WA PIC</span>
+                <span>Ubah No WA</span>
               </button>
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-            {/* Tab PIC 1: GA */}
-            <button
-              type="button"
-              onClick={() => setSelectedStage('ga')}
-              className={`p-3 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
-                currentTargetStage === 'ga'
-                  ? 'border-indigo-500 bg-indigo-50/60 ring-2 ring-indigo-500/20 shadow-xs'
-                  : 'border-slate-200 hover:border-slate-300 bg-white'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-100/70 px-1.5 py-0.2 rounded">
-                    Tahap 1 • GA
-                  </span>
-                  {approvals.ga?.status === 'approved' ? (
-                    <span className="text-[9px] font-bold text-emerald-700">✓ Selesai</span>
-                  ) : approvals.ga?.status === 'rejected' ? (
-                    <span className="text-[9px] font-bold text-rose-700">✗ Ditolak</span>
-                  ) : (
-                    <span className="text-[9px] font-bold text-amber-700 animate-pulse">⏳ Menunggu</span>
-                  )}
-                </div>
-                <div className="font-bold text-xs text-slate-900 mt-1 truncate">
-                  {picContacts?.ga?.name || 'PIC General Affairs'}
-                </div>
-                <div className="text-[11px] font-mono text-slate-500 mt-0.5 truncate">
-                  {picContacts?.ga?.phone ? `WA: ${picContacts.ga.phone}` : '⚠️ No WA Belum Diatur'}
-                </div>
-              </div>
-            </button>
-
-            {/* Tab PIC 2: SPV */}
-            <button
-              type="button"
-              onClick={() => setSelectedStage('spv')}
-              disabled={!isTD}
-              className={`p-3 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
-                !isTD
-                  ? 'opacity-50 border-slate-200 bg-slate-50 cursor-not-allowed'
-                  : currentTargetStage === 'spv'
-                    ? 'border-teal-500 bg-teal-50/60 ring-2 ring-teal-500/20 shadow-xs'
-                    : 'border-slate-200 hover:border-slate-300 bg-white'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700 bg-teal-100/70 px-1.5 py-0.2 rounded">
-                    Tahap 2 • SPV
-                  </span>
-                  {!isTD ? (
-                    <span className="text-[9px] text-slate-400">Non-TD</span>
-                  ) : approvals.spv?.status === 'approved' ? (
-                    <span className="text-[9px] font-bold text-emerald-700">✓ Selesai</span>
-                  ) : approvals.spv?.status === 'rejected' ? (
-                    <span className="text-[9px] font-bold text-rose-700">✗ Ditolak</span>
-                  ) : (
-                    <span className="text-[9px] font-bold text-amber-700 animate-pulse">⏳ Menunggu</span>
-                  )}
-                </div>
-                <div className="font-bold text-xs text-slate-900 mt-1 truncate">
-                  {picContacts?.spv?.name || 'PIC Supervisor'}
-                </div>
-                <div className="text-[11px] font-mono text-slate-500 mt-0.5 truncate">
-                  {!isTD ? 'Dilewati (Non-TD)' : picContacts?.spv?.phone ? `WA: ${picContacts.spv.phone}` : '⚠️ No WA Belum Diatur'}
-                </div>
-              </div>
-            </button>
-
-            {/* Tab PIC 3: ADH */}
-            <button
-              type="button"
-              onClick={() => setSelectedStage('adh')}
-              className={`p-3 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
-                currentTargetStage === 'adh'
-                  ? 'border-purple-500 bg-purple-50/60 ring-2 ring-purple-500/20 shadow-xs'
-                  : 'border-slate-200 hover:border-slate-300 bg-white'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 bg-purple-100/70 px-1.5 py-0.2 rounded">
-                    Tahap 3 • ADH
-                  </span>
-                  {approvals.adh?.status === 'approved' ? (
-                    <span className="text-[9px] font-bold text-emerald-700">✓ Selesai</span>
-                  ) : approvals.adh?.status === 'rejected' ? (
-                    <span className="text-[9px] font-bold text-rose-700">✗ Ditolak</span>
-                  ) : (
-                    <span className="text-[9px] font-bold text-amber-700 animate-pulse">⏳ Menunggu</span>
-                  )}
-                </div>
-                <div className="font-bold text-xs text-slate-900 mt-1 truncate">
-                  {picContacts?.adh?.name || 'PIC Admin Head'}
-                </div>
-                <div className="text-[11px] font-mono text-slate-500 mt-0.5 truncate">
-                  {picContacts?.adh?.phone ? `WA: ${picContacts.adh.phone}` : '⚠️ No WA Belum Diatur'}
-                </div>
-              </div>
-            </button>
+          <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
+            <span className="text-slate-400">Nomor WhatsApp PIC:</span>
+            {targetPic.phone ? (
+              <span className="font-mono font-bold text-emerald-300 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/60">
+                {targetPic.phone}
+              </span>
+            ) : (
+              <span className="text-rose-400 font-semibold bg-rose-950/60 px-2 py-0.5 rounded border border-rose-800/60">
+                Belum Diatur
+              </span>
+            )}
           </div>
         </div>
 
         {/* Warning jika nomor WA belum diatur */}
         {!targetPic.phone && (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-2 text-xs text-amber-900">
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-2 text-xs text-rose-900">
             <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
               <span>Nomor WhatsApp untuk <strong>{targetPic.roleTitle}</strong> belum diisi.</span>
             </div>
             {onOpenEditPicContacts && (
               <button
                 type="button"
                 onClick={onOpenEditPicContacts}
-                className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 cursor-pointer"
+                className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shrink-0 cursor-pointer"
               >
                 Isi Nomor Sekarang
               </button>
@@ -390,26 +290,48 @@ export function WhatsAppFollowUpModal({
           </div>
         )}
 
-        {/* Input Catatan Tambahan (Opsional) */}
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
-            Catatan Tambahan untuk PIC (Opsional):
-          </label>
-          <input
-            type="text"
-            placeholder="Contoh: Klien sudah menunggu di lobby, mohon approval segera..."
-            value={customNote}
-            onChange={(e) => setCustomNote(e.target.value)}
-            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-          />
+        {/* Ringkasan Singkat Tiket Peminjaman */}
+        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1.5 text-slate-700">
+          <div className="flex justify-between">
+            <span className="text-slate-500 font-medium">Peminjam:</span>
+            <span className="font-bold text-slate-900">{loan.borrower_name} ({loan.division})</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500 font-medium">Unit Mobil:</span>
+            <span className="font-bold text-slate-900">{loan.vehicle_name} ({loan.license_plate}){isTD ? ' [Test Drive]' : ''}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500 font-medium">Jadwal Pakai:</span>
+            <span className="font-medium text-slate-800">{formatDate(loan.start_date)} - {formatDate(loan.end_date)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500 font-medium">Tujuan / Keperluan:</span>
+            <span className="font-medium text-slate-800">{loan.destination} ({loan.purpose})</span>
+          </div>
         </div>
+
+        {/* Input Catatan Tambahan (Opsional) */}
+        {!sentInfo.isSent && (
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Catatan Tambahan untuk PIC (Opsional):
+            </label>
+            <input
+              type="text"
+              placeholder="Contoh: Dokumen fisik sudah kami lampirkan di meja GA..."
+              value={customNote}
+              onChange={(e) => setCustomNote(e.target.value)}
+              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+            />
+          </div>
+        )}
 
         {/* Preview Pesan WhatsApp */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
               <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Preview Teks Pesan WhatsApp:</span>
+              <span>Preview Pesan WhatsApp:</span>
             </span>
             <button
               type="button"
@@ -421,7 +343,7 @@ export function WhatsAppFollowUpModal({
             </button>
           </div>
 
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono whitespace-pre-wrap text-slate-700 max-h-40 overflow-y-auto leading-relaxed select-all">
+          <div className="p-3 bg-slate-100/70 border border-slate-200 rounded-xl text-xs font-mono whitespace-pre-wrap text-slate-700 max-h-36 overflow-y-auto leading-relaxed select-all">
             {generatedMessage}
           </div>
         </div>
@@ -436,15 +358,27 @@ export function WhatsAppFollowUpModal({
             Tutup
           </button>
           
-          <button
-            type="button"
-            onClick={handleSendWhatsApp}
-            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm cursor-pointer"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>Kirim Pesan WhatsApp ({targetPic.roleTitle.split(' ')[0]})</span>
-            <ExternalLink className="w-3 h-3 opacity-80" />
-          </button>
+          {sentInfo.isSent ? (
+            <button
+              type="button"
+              disabled
+              className="px-5 py-2 bg-slate-200 text-slate-500 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-not-allowed border border-slate-300"
+            >
+              <Check className="w-4 h-4 text-emerald-600" />
+              <span>Pesan WA Sudah Dikirim (Batas 1 Kali)</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleExecuteSendWhatsApp}
+              disabled={isSending || !targetPic.phone}
+              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>{isSending ? 'Memproses...' : `Kirim Pesan WhatsApp (${targetPic.roleTitle.split(' ')[0]})`}</span>
+              <ExternalLink className="w-3 h-3 opacity-80" />
+            </button>
+          )}
         </div>
 
       </div>

@@ -465,6 +465,71 @@ export const api = {
     }
   },
 
+  // Catat pengiriman pesan WA Follow Up (Maksimal 1 kali per tahapan)
+  async recordWaFollowUp(loanId, stage, senderUser) {
+    const supabase = getSupabase()
+    if (!supabase) return { success: false, error: 'Klien Supabase belum siap.' }
+
+    try {
+      let { data: loan, error: fetchErr } = await supabase
+        .from('loans')
+        .select('*')
+        .eq('id', loanId)
+        .single()
+
+      if (fetchErr || !loan) {
+        return { success: false, error: 'Data peminjaman tidak ditemukan.' }
+      }
+
+      const currentApprovals = this.parseLoanApprovals(loan)
+      if (!currentApprovals[stage]) {
+        currentApprovals[stage] = { status: 'pending' }
+      }
+
+      // Pastikan belum pernah dikirim
+      if (currentApprovals[stage].wa_sent_at) {
+        return { 
+          success: false, 
+          error: 'Pesan follow up WA untuk tahapan ini sudah pernah dikirim sebelumnya (dibatasi 1 kali).' 
+        }
+      }
+
+      const nowIso = new Date().toISOString()
+      currentApprovals[stage].wa_sent_at = nowIso
+      currentApprovals[stage].wa_sent_by = senderUser?.name || 'User'
+
+      let baseNote = (loan.notes || '')
+        .split('__SECURITY_DATA__:')[0]
+        .split('__APPROVAL_DATA__:')[0]
+        .trim()
+
+      const currentSec = this.parseSecurityData(loan)
+
+      let newNotes = baseNote
+      if (loan.notes && loan.notes.includes('__SECURITY_DATA__:')) {
+        newNotes += (newNotes ? '\n\n' : '') + `__SECURITY_DATA__:${JSON.stringify(currentSec)}`
+      }
+      newNotes += (newNotes ? '\n\n' : '') + `__APPROVAL_DATA__:${JSON.stringify(currentApprovals)}`
+
+      const { error: updateErr } = await supabase
+        .from('loans')
+        .update({ notes: newNotes })
+        .eq('id', loanId)
+
+      if (updateErr) throw updateErr
+
+      // Simpan juga di localStorage sebagai backup cache lokal instan
+      try {
+        localStorage.setItem(`pinjammobil_wa_sent_${loanId}_${stage}`, nowIso)
+      } catch (e) {}
+
+      return { success: true, wa_sent_at: nowIso, approvals: currentApprovals }
+    } catch (err) {
+      console.error('recordWaFollowUp error:', err)
+      return { success: false, error: err.message || 'Gagal mencatat pengiriman WA follow up.' }
+    }
+  },
+
   async returnVehicle(loanId, vehicleId, endMileage) {
     const supabase = getSupabase()
     if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }

@@ -52,7 +52,7 @@ export default function App() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [isResetLoansOpen, setIsResetLoansOpen] = useState(false)
   const [isPicContactsOpen, setIsPicContactsOpen] = useState(false)
-  const [followUpLoan, setFollowUpLoan] = useState(null)
+  const [followUpData, setFollowUpData] = useState({ loan: null, stage: 'ga' })
   const [picContacts, setPicContacts] = useState({
     ga: { role: 'ga', title: 'General Affairs (GA)', name: 'PIC General Affairs', phone: '' },
     spv: { role: 'spv', title: 'Supervisor (SPV)', name: 'PIC Supervisor', phone: '' },
@@ -316,6 +316,18 @@ export default function App() {
     }
   }
 
+  const handleSendWaFollowUp = async (loanId, stage) => {
+    const res = await api.recordWaFollowUp(loanId, stage, currentUser)
+    if (res.success) {
+      showToast(`Pesan follow up WA ke PIC ${stage.toUpperCase()} berhasil dikirim!`)
+      loadData()
+      return { success: true }
+    } else {
+      showToast(res.error || 'Gagal mencatat pengiriman WA follow up.', 'error')
+      return { success: false, error: res.error }
+    }
+  }
+
   const handleCancelLoan = async (loanId, vehicleId, reason) => {
     const res = await api.cancelLoan(loanId, vehicleId, currentUser, reason)
     if (res.success) {
@@ -525,7 +537,7 @@ export default function App() {
               onDeleteLoan={handleDeleteLoan}
               onCancelLoan={handleCancelLoan}
               onOpenResetLoans={() => setIsResetLoansOpen(true)}
-              onOpenWhatsAppFollowUp={(loan) => setFollowUpLoan(loan)}
+              onOpenWhatsAppFollowUp={(loan, stage) => setFollowUpData({ loan, stage: stage || 'ga' })}
             />
           )}
 
@@ -536,7 +548,7 @@ export default function App() {
               currentUser={currentUser}
               onUpdateApproval={handleUpdateApproval}
               onRefresh={loadData}
-              onOpenWhatsAppFollowUp={(loan) => setFollowUpLoan(loan)}
+              onOpenWhatsAppFollowUp={(loan, stage) => setFollowUpData({ loan, stage: stage || 'ga' })}
               onOpenPicContacts={() => setIsPicContactsOpen(true)}
             />
           )}
@@ -619,10 +631,12 @@ export default function App() {
       />
 
       <WhatsAppFollowUpModal
-        isOpen={Boolean(followUpLoan)}
-        onClose={() => setFollowUpLoan(null)}
-        loan={followUpLoan}
+        isOpen={Boolean(followUpData?.loan)}
+        onClose={() => setFollowUpData({ loan: null, stage: 'ga' })}
+        loan={followUpData?.loan}
+        stage={followUpData?.stage || 'ga'}
         picContacts={picContacts}
+        onSendWaFollowUp={handleSendWaFollowUp}
         onOpenEditPicContacts={() => {
           setIsPicContactsOpen(true)
         }}

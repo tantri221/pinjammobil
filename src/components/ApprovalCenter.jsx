@@ -453,18 +453,45 @@ export function ApprovalCenter({
 
                   {/* Tombol Aksi Langsung & Follow Up WA */}
                   <div className="flex items-center gap-2 self-end md:self-auto flex-wrap">
-                    {/* Tombol Follow Up WhatsApp */}
-                    {onOpenWhatsAppFollowUp && (
-                      <button
-                        type="button"
-                        onClick={() => onOpenWhatsAppFollowUp(loan)}
-                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                        title="Kirim pesan WhatsApp follow up verifikasi / persetujuan"
-                      >
-                        <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
-                        <span>Follow Up WA</span>
-                      </button>
-                    )}
+                    {/* Tombol Follow Up WhatsApp khusus untuk PIC tahapan ini */}
+                    {onOpenWhatsAppFollowUp && (() => {
+                      const targetFollowUpStage = activeSubTab === 'all'
+                        ? (approvals.ga?.status === 'pending' ? 'ga' : (isTD && approvals.spv?.status === 'pending' ? 'spv' : 'adh'))
+                        : activeSubTab
+
+                      const isStageWaSent = Boolean(
+                        approvals[targetFollowUpStage]?.wa_sent_at || 
+                        (() => {
+                          try {
+                            return localStorage.getItem(`pinjammobil_wa_sent_${loan.id}_${targetFollowUpStage}`)
+                          } catch (e) {
+                            return null
+                          }
+                        })()
+                      )
+
+                      return isStageWaSent ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpenWhatsAppFollowUp(loan, targetFollowUpStage)}
+                          className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                          title="Pesan WA follow up sudah dikirim (Batas maksimal 1 kali)"
+                        >
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                          <span>WA Terkirim (1x)</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onOpenWhatsAppFollowUp(loan, targetFollowUpStage)}
+                          className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                          title={`Kirim pesan WhatsApp follow up ke PIC ${targetFollowUpStage.toUpperCase()}`}
+                        >
+                          <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                          <span>Follow Up WA ({targetFollowUpStage.toUpperCase()})</span>
+                        </button>
+                      )
+                    })()}
                     
                     {/* Aksi Tab GA */}
                     {activeSubTab === 'ga' && (
