@@ -577,9 +577,9 @@ export function LoanHistoryTable({
                                 >
                                   GA {loan.approvals.ga?.status === 'approved' ? '✓' : loan.approvals.ga?.status === 'rejected' ? '✗' : '⏳'}
                                 </span>
-                                {isTestDriveLoan(loan, loan.vehicles) && (
+                                {loan.approvals.spv?.status !== 'not_required' && (
                                   <span 
-                                    title="2. Persetujuan SPV (Unit Test Drive)"
+                                    title="2. Persetujuan SPV"
                                     className={`px-1.5 py-0.5 rounded ${
                                       loan.approvals.spv?.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
                                       loan.approvals.spv?.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-teal-50 text-teal-700 border border-teal-200'
@@ -630,7 +630,7 @@ export function LoanHistoryTable({
                           {isPending && onOpenWhatsAppFollowUp && (() => {
                             const pendingStage = loan.approvals?.ga?.status === 'pending'
                               ? 'ga'
-                              : (isTestDriveLoan(loan, loan.vehicles) && loan.approvals?.spv?.status === 'pending' ? 'spv' : 'adh')
+                              : (loan.approvals?.spv?.status === 'pending' ? 'spv' : 'adh')
 
                             const isWaSent = Boolean(
                               loan.approvals?.[pendingStage]?.wa_sent_at ||

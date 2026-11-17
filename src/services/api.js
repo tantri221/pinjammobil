@@ -21,10 +21,35 @@ export const api = {
 
       if (error) throw error
 
-      const formatted = (data || []).map(v => ({
-        ...v,
-        classification: v.classification || 'Kendaraan Oprasional / Aset'
-      }))
+      // Ambil cache alur verifikasi dari app_settings / localStorage
+      const savedFlows = await this.getVehicleApprovalFlows()
+
+      const formatted = (data || []).map(v => {
+        const isTD = isTestDriveLoan(null, v)
+        let flow = v.approval_flow || savedFlows[v.id] || null
+        if (typeof flow === 'string') {
+          try { flow = JSON.parse(flow) } catch (e) {}
+        }
+        if (!flow || typeof flow !== 'object') {
+          flow = {
+            ga: true,
+            spv: isTD,
+            adh: true
+          }
+        } else {
+          flow = {
+            ga: flow.ga !== false,
+            spv: Boolean(flow.spv),
+            adh: flow.adh !== false
+          }
+        }
+
+        return {
+          ...v,
+          classification: v.classification || 'Kendaraan Oprasional / Aset',
+          approval_flow: flow
+        }
+      })
 
       return { data: formatted, error: null }
     } catch (err) {
@@ -33,16 +58,80 @@ export const api = {
     }
   },
 
+  async getVehicleApprovalFlows() {
+    let flows = {}
+    try {
+      const local = localStorage.getItem('pinjammobil_vehicle_approval_flows')
+      if (local) flows = JSON.parse(local)
+    } catch (e) {}
+
+    const supabase = getSupabase()
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'vehicle_approval_flows')
+          .single()
+
+        if (!error && data?.value) {
+          const parsed = JSON.parse(data.value)
+          if (parsed && typeof parsed === 'object') {
+            flows = { ...flows, ...parsed }
+            localStorage.setItem('pinjammobil_vehicle_approval_flows', JSON.stringify(flows))
+          }
+        }
+      } catch (err) {
+        // Abaikan jika tabel app_settings belum ada
+      }
+    }
+    return flows
+  },
+
+  async saveVehicleApprovalFlow(vehicleId, flow) {
+    if (!vehicleId || !flow) return
+    try {
+      let flows = {}
+      try {
+        const local = localStorage.getItem('pinjammobil_vehicle_approval_flows')
+        if (local) flows = JSON.parse(local)
+      } catch (e) {}
+
+      flows[vehicleId] = flow
+      localStorage.setItem('pinjammobil_vehicle_approval_flows', JSON.stringify(flows))
+
+      const supabase = getSupabase()
+      if (supabase) {
+        await supabase
+          .from('app_settings')
+          .upsert({
+            key: 'vehicle_approval_flows',
+            value: JSON.stringify(flows),
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'key' })
+      }
+    } catch (err) {
+      console.warn('Gagal menyimpan vehicle_approval_flow:', err)
+    }
+  },
+
   async createVehicle(vehicleData) {
     const supabase = getSupabase()
     if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }
 
     try {
+      const flow = vehicleData.approval_flow || {
+        ga: true,
+        spv: String(vehicleData.classification || '').toLowerCase().includes('test drive'),
+        adh: true
+      }
+
       const payload = {
         name: vehicleData.name,
         license_plate: vehicleData.license_plate,
         type: vehicleData.type || 'MPV',
         classification: vehicleData.classification || 'Kendaraan Oprasional / Aset',
+        approval_flow: flow,
         status: vehicleData.status || 'available',
         capacity: Number(vehicleData.capacity) || 7,
         fuel_level: Number(vehicleData.fuel_level) || 100,
@@ -54,15 +143,23 @@ export const api = {
         .insert([payload])
         .select()
 
-      if (error && (error.code === '42703' || String(error.message).includes('classification'))) {
-        delete payload.classification
+      if (error && (error.code === '42703' || String(error.message).includes('approval_flow') || String(error.message).includes('classification'))) {
+        delete payload.approval_flow
+        if (error.code === '42703' || String(error.message).includes('classification')) {
+          delete payload.classification
+        }
         const retry = await supabase.from('vehicles').insert([payload]).select()
         data = retry.data
         error = retry.error
       }
 
       if (error) throw error
-      return { success: true, data: data[0] }
+      const created = data?.[0]
+      if (created?.id) {
+        await this.saveVehicleApprovalFlow(created.id, flow)
+      }
+
+      return { success: true, data: { ...created, approval_flow: flow } }
     } catch (err) {
       console.error('Supabase createVehicle error:', err)
       return { success: false, error: err.message }
@@ -74,15 +171,20 @@ export const api = {
     if (!supabase) return { success: false, error: 'Klien Supabase belum terkonfigurasi.' }
 
     try {
+      const flow = updates.approval_flow
+
       let { data, error } = await supabase
         .from('vehicles')
         .update(updates)
         .eq('id', id)
         .select()
 
-      if (error && (error.code === '42703' || String(error.message).includes('classification'))) {
+      if (error && (error.code === '42703' || String(error.message).includes('approval_flow') || String(error.message).includes('classification'))) {
         const fallbackUpdates = { ...updates }
-        delete fallbackUpdates.classification
+        delete fallbackUpdates.approval_flow
+        if (error.code === '42703' || String(error.message).includes('classification')) {
+          delete fallbackUpdates.classification
+        }
         const retry = await supabase
           .from('vehicles')
           .update(fallbackUpdates)
@@ -92,8 +194,12 @@ export const api = {
         error = retry.error
       }
 
+      if (flow) {
+        await this.saveVehicleApprovalFlow(id, flow)
+      }
+
       if (error) throw error
-      return { success: true, data: data[0] }
+      return { success: true, data: { ...(data?.[0] || {}), approval_flow: flow } }
     } catch (err) {
       console.error('Supabase updateVehicle error:', err)
       return { success: false, error: err.message }
@@ -124,13 +230,29 @@ export const api = {
 
   parseLoanApprovals(loan) {
     const isTD = isTestDriveLoan(loan, loan?.vehicles)
+    
+    // Cek konfigurasi alur persetujuan pada kendaraan jika tersedia
+    let vFlow = null
+    if (loan?.vehicles?.approval_flow) {
+      vFlow = typeof loan.vehicles.approval_flow === 'string'
+        ? (() => { try { return JSON.parse(loan.vehicles.approval_flow) } catch (e) { return null } })()
+        : loan.vehicles.approval_flow
+    }
+
+    const requiresGa = vFlow ? (vFlow.ga !== false) : true
+    const requiresSpv = vFlow ? Boolean(vFlow.spv) : isTD
+    const requiresAdh = vFlow ? (vFlow.adh !== false) : true
 
     let approvalData = {
-      ga: { status: 'pending', by: null, at: null, note: '' },
-      spv: isTD 
+      ga: requiresGa
         ? { status: 'pending', by: null, at: null, note: '' }
-        : { status: 'not_required', by: 'Sistem', at: null, note: 'Khusus Armada Test Drive (Dilewati)' },
-      adh: { status: 'pending', by: null, at: null, note: '' }
+        : { status: 'not_required', by: 'Sistem', at: null, note: 'Dilewati untuk unit ini' },
+      spv: requiresSpv 
+        ? { status: 'pending', by: null, at: null, note: '' }
+        : { status: 'not_required', by: 'Sistem', at: null, note: 'Dilewati untuk unit ini' },
+      adh: requiresAdh
+        ? { status: 'pending', by: null, at: null, note: '' }
+        : { status: 'not_required', by: 'Sistem', at: null, note: 'Dilewati untuk unit ini' }
     }
 
     if (loan.approval_spv) approvalData.spv.status = loan.approval_spv
@@ -154,13 +276,29 @@ export const api = {
       }
     }
 
-    // Jika BUKAN unit Test Drive, pastikan status SPV adalah not_required jika masih pending
-    if (!isTD && (!approvalData.spv || approvalData.spv.status === 'pending')) {
+    // Pastikan status not_required konsisten jika tahapan dinonaktifkan
+    if (!requiresSpv && (!approvalData.spv || approvalData.spv.status === 'pending')) {
       approvalData.spv = {
         status: 'not_required',
         by: 'Sistem',
         at: null,
-        note: 'Khusus Armada Test Drive (Dilewati)'
+        note: 'Dilewati untuk unit ini'
+      }
+    }
+    if (!requiresGa && (!approvalData.ga || approvalData.ga.status === 'pending')) {
+      approvalData.ga = {
+        status: 'not_required',
+        by: 'Sistem',
+        at: null,
+        note: 'Dilewati untuk unit ini'
+      }
+    }
+    if (!requiresAdh && (!approvalData.adh || approvalData.adh.status === 'pending')) {
+      approvalData.adh = {
+        status: 'not_required',
+        by: 'Sistem',
+        at: null,
+        note: 'Dilewati untuk unit ini'
       }
     }
 
@@ -298,16 +436,31 @@ export const api = {
         }
       }
 
-      // Alur otorisasi berjenjang:
-      // 1. Verifikasi GA: semua armada
-      // 2. Persetujuan SPV: khusus unit TEST DRIVE (untuk non-test drive otomatis not_required)
-      // 3. Persetujuan ADH: semua unit
+      // Ambil konfigurasi alur verifikasi & persetujuan unit kendaraan ini
+      let approvalFlow = { ga: true, spv: isTD, adh: true }
+      if (loanData.vehicle_id) {
+        try {
+          const savedFlows = await this.getVehicleApprovalFlows()
+          if (savedFlows[loanData.vehicle_id]) {
+            approvalFlow = { ...approvalFlow, ...savedFlows[loanData.vehicle_id] }
+          } else if (vData?.approval_flow) {
+            const parsed = typeof vData.approval_flow === 'string' ? JSON.parse(vData.approval_flow) : vData.approval_flow
+            approvalFlow = { ...approvalFlow, ...parsed }
+          }
+        } catch (e) {}
+      }
+
+      const nowIso = new Date().toISOString()
       const initialApprovals = {
-        ga: { status: 'pending', by: null, at: null, note: '' },
-        spv: isTD
+        ga: approvalFlow.ga !== false
           ? { status: 'pending', by: null, at: null, note: '' }
-          : { status: 'not_required', by: 'Sistem', at: new Date().toISOString(), note: 'Khusus Armada Test Drive (Dilewati)' },
-        adh: { status: 'pending', by: null, at: null, note: '' }
+          : { status: 'not_required', by: 'Sistem', at: nowIso, note: 'Dilewati untuk unit ini' },
+        spv: approvalFlow.spv === true
+          ? { status: 'pending', by: null, at: null, note: '' }
+          : { status: 'not_required', by: 'Sistem', at: nowIso, note: 'Dilewati untuk unit ini' },
+        adh: approvalFlow.adh !== false
+          ? { status: 'pending', by: null, at: null, note: '' }
+          : { status: 'not_required', by: 'Sistem', at: nowIso, note: 'Dilewati untuk unit ini' }
       }
 
       const userNote = (loanData.notes || '').trim()
@@ -395,24 +548,22 @@ export const api = {
         note: (note || '').trim()
       }
 
-      // Hitung status keseluruhan
-      // Aturan alur:
-      // - Verifikasi GA untuk semua armada
-      // - Persetujuan SPV khusus untuk armada/unit TEST DRIVE
-      // - Persetujuan ADH untuk semua armada
+      // Hitung status keseluruhan secara dinamis sesuai tahapan yang aktif untuk kendaraan ini
       let newOverallStatus = 'pending'
       if (
         currentApprovals.ga?.status === 'rejected' ||
-        (isTD && currentApprovals.spv?.status === 'rejected') ||
+        currentApprovals.spv?.status === 'rejected' ||
         currentApprovals.adh?.status === 'rejected'
       ) {
         newOverallStatus = 'rejected'
-      } else if (
-        currentApprovals.ga?.status === 'approved' &&
-        (!isTD || currentApprovals.spv?.status === 'approved' || currentApprovals.spv?.status === 'not_required') &&
-        currentApprovals.adh?.status === 'approved'
-      ) {
-        newOverallStatus = 'approved'
+      } else {
+        const gaOk = currentApprovals.ga?.status === 'approved' || currentApprovals.ga?.status === 'not_required'
+        const spvOk = currentApprovals.spv?.status === 'approved' || currentApprovals.spv?.status === 'not_required'
+        const adhOk = currentApprovals.adh?.status === 'approved' || currentApprovals.adh?.status === 'not_required'
+
+        if (gaOk && spvOk && adhOk) {
+          newOverallStatus = 'approved'
+        }
       }
 
       const currentSec = this.parseSecurityData(loan)

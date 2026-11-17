@@ -74,7 +74,7 @@ export function ApprovalCenter({
       const isTD = isTestDriveLoan(l, l.vehicles)
       
       if (app.ga?.status === 'pending') gaPending++
-      if (isTD && app.spv?.status === 'pending') spvPending++
+      if (app.spv?.status === 'pending') spvPending++
       if (app.adh?.status === 'pending') adhPending++
     })
 
@@ -98,7 +98,6 @@ export function ApprovalCenter({
       if (activeSubTab === 'ga') {
         if (approvals.ga?.status !== 'pending') return false
       } else if (activeSubTab === 'spv') {
-        if (!isTD) return false // Non-test drive tidak perlu persetujuan SPV
         if (approvals.spv?.status !== 'pending') return false
       } else if (activeSubTab === 'adh') {
         if (approvals.adh?.status !== 'pending') return false
@@ -250,7 +249,7 @@ export function ApprovalCenter({
             }`}
           >
             <UserCheck className="h-3.5 w-3.5" />
-            <span>Persetujuan SPV (Test Drive)</span>
+            <span>Persetujuan SPV</span>
             {stats.spvPending > 0 && (
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
                 activeSubTab === 'spv' ? 'bg-sky-800 text-white' : 'bg-amber-100 text-amber-800'
@@ -354,10 +353,10 @@ export function ApprovalCenter({
             }
 
             const isTD = isTestDriveLoan(loan, loan.vehicles)
-            const isGaApproved = approvals.ga?.status === 'approved'
-            const isSpvApproved = !isTD || approvals.spv?.status === 'approved' || approvals.spv?.status === 'not_required'
-            const isReadyForSpv = isGaApproved
-            const isReadyForAdh = isGaApproved && isSpvApproved
+            const isGaDone = approvals.ga?.status === 'approved' || approvals.ga?.status === 'not_required'
+            const isSpvDone = approvals.spv?.status === 'approved' || approvals.spv?.status === 'not_required'
+            const isReadyForSpv = isGaDone
+            const isReadyForAdh = isGaDone && isSpvDone
 
             return (
               <div 
@@ -456,7 +455,7 @@ export function ApprovalCenter({
                     {/* Tombol Follow Up WhatsApp khusus untuk PIC tahapan ini */}
                     {onOpenWhatsAppFollowUp && (() => {
                       const targetFollowUpStage = activeSubTab === 'all'
-                        ? (approvals.ga?.status === 'pending' ? 'ga' : (isTD && approvals.spv?.status === 'pending' ? 'spv' : 'adh'))
+                        ? (approvals.ga?.status === 'pending' ? 'ga' : (approvals.spv?.status === 'pending' ? 'spv' : 'adh'))
                         : activeSubTab
 
                       const isStageWaSent = Boolean(
@@ -525,8 +524,8 @@ export function ApprovalCenter({
 
                     {/* Aksi Tab SPV */}
                     {activeSubTab === 'spv' && (
-                      !isTD ? (
-                        <span className="text-[11px] text-slate-400">Unit Non-TD (Bypass SPV)</span>
+                      approvals.spv?.status === 'not_required' ? (
+                        <span className="text-[11px] text-slate-400">Dilewati untuk Unit Ini</span>
                       ) : canApproveStage('spv') ? (
                         !isReadyForSpv && !isAdmin ? (
                           <span className="text-[11px] text-amber-600 font-medium">Menunggu Verifikasi GA</span>

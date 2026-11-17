@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS public.vehicles (
 
 -- Migrasi tambahan untuk tabel vehicles jika kolom classification belum ada
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS classification VARCHAR(50) DEFAULT 'Kendaraan Oprasional / Aset';
+-- Migrasi tambahan untuk konfigurasi alur verifikasi & persetujuan unit kendaraan
+ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS approval_flow JSONB DEFAULT '{"ga": true, "spv": false, "adh": true}'::jsonb;
 
 -- 2. Buat Tabel Peminjaman (loans)
 CREATE TABLE IF NOT EXISTS public.loans (

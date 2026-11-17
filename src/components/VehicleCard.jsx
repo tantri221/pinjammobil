@@ -103,6 +103,21 @@ export function VehicleCard({ vehicle, isAdmin = false, onBorrow, onEdit, onDele
               />
             </div>
           </div>
+
+          {/* Info Alur Verifikasi & Persetujuan */}
+          <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+            <span className="text-slate-400">Alur Verifikasi:</span>
+            <span className="font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 text-[10px]">
+              {(() => {
+                const f = vehicle.approval_flow || {}
+                const stages = []
+                if (f.ga !== false) stages.push('GA')
+                if (f.spv) stages.push('SPV')
+                if (f.adh !== false) stages.push('ADH')
+                return stages.length > 0 ? stages.join(' → ') : 'Langsung'
+              })()}
+            </span>
+          </div>
         </div>
       </div>
 
