@@ -502,7 +502,7 @@ export default function App() {
                 </div>
                 
                 <h1 className="text-lg sm:text-2xl font-bold text-slate-800 mt-1 leading-snug">
-                  {activeTab === 'vehicles' && 'Status Ketersediaan & Armada Mobil'}
+                  {activeTab === 'vehicles' && 'Status dan Daftar Kendaraan'}
                   {activeTab === 'loans' && 'Histori & Transaksi Peminjaman Unit'}
                   {activeTab === 'approvals' && 'Pusat Verifikasi & Persetujuan'}
                   {activeTab === 'security' && 'Pos Pengecekan Security'}
@@ -711,7 +711,7 @@ export default function App() {
       {/* MOBILE BOTTOM NAVIGATION BAR (Khusus Tampilan Smartphone / HP) */}
       {/* ============================================================ */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 text-slate-400 py-1.5 px-3 shadow-2xl flex items-center justify-around">
-        {/* 1. Tab Armada */}
+        {/* 1. Tab Kendaraan */}
         <button
           type="button"
           onClick={() => {
@@ -723,7 +723,7 @@ export default function App() {
           }`}
         >
           <Layers className="h-4 w-4" />
-          <span className="text-[10px]">Armada</span>
+          <span className="text-[10px]">Kendaraan</span>
         </button>
 
         {/* 2. Tab Histori */}

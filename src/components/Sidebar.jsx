@@ -166,7 +166,7 @@ export function Sidebar({
           >
             <div className="flex items-center gap-2">
               <Layers className="h-4 w-4" />
-              <span>Status & Armada Mobil</span>
+              <span>Status dan Daftar Kendaraan</span>
             </div>
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/20 text-white font-mono">
               {vehicleCount}
