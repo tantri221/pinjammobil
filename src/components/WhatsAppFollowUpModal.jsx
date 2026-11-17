@@ -122,36 +122,57 @@ export function WhatsAppFollowUpModal({
     }
   }
 
-  // Generate teks pesan WhatsApp yang rapi dan profesional khusus untuk PIC ini
+  const formatSchedule = (startStr, endStr) => {
+    if (!startStr) return '-'
+    try {
+      const dStart = new Date(startStr)
+      const dEnd = endStr ? new Date(endStr) : null
+      
+      const dayStart = dStart.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+      const timeStart = dStart.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':')
+      
+      if (!dEnd) return `${dayStart}, ${timeStart}`
+      
+      const dayEnd = dEnd.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+      const timeEnd = dEnd.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':')
+      
+      if (dayStart === dayEnd) {
+        return `${dayStart}, ${timeStart} - ${timeEnd}`
+      }
+      return `${dayStart}, ${timeStart} - ${dayEnd}, ${timeEnd}`
+    } catch {
+      return `${startStr} s/d ${endStr || ''}`
+    }
+  }
+
+  // Generate teks pesan WhatsApp yang rapi, simple, dan profesional khusus untuk PIC ini
   const generatedMessage = useMemo(() => {
     if (!loan) return ''
 
     const isTD = isTestDriveLoan(loan, loan.vehicles)
 
-    let msg = `*FOLLOW UP VERIFIKASI & PERSETUJUAN PINJAM MOBIL*\n`
-    msg += `Sistem Informasi PinjamMobil Operasional\n`
-    msg += `Agung Toyota Singaraja\n`
+    const stageStatusLabel = 
+      currentStage === 'spv' ? 'Persetujuan SPV' :
+      currentStage === 'adh' ? 'Persetujuan ADH' :
+      'Verifikasi GA'
+
+    let msg = `*Pinjam Mobil - Agung Toyota Singaraja*\n\n`
     msg += `Semangat Pagi,\n`
-    msg += `Mohon kesediaannya untuk memproses pengajuan peminjaman kendaraan berikut yang saat ini sedang menunggu *${targetPic.stageActionName}*:\n\n`
-    msg += `📋 *Rincian Pengajuan Tiket:*\n`
-    msg += `• *Nama Peminjam:* ${loan.borrower_name || '-'} (Divisi ${loan.division || '-'})\n`
-    msg += `• *Unit Armada:* ${loan.vehicle_name || 'Mobil'} (${loan.license_plate || '-'})${isTD ? ' [Unit Test Drive]' : ''}\n`
-    msg += `• *Peruntukan:* ${loan.purpose || '-'}\n`
-    msg += `• *Kota / Tujuan:* ${loan.destination || '-'}\n`
-    msg += `• *Jadwal Pakai:* ${formatDate(loan.start_date)} s/d ${formatDate(loan.end_date)}\n`
+    msg += `Mohon bantuannya untuk memproses pengajuan:\n`
+    msg += `• *Peminjam:* ${loan.borrower_name || '-'} (${loan.division || '-'})\n`
+    msg += `• *Unit:* ${loan.vehicle_name || 'Mobil'} (${loan.license_plate || '-'})${isTD ? ' [Test Drive]' : ''}\n`
+    msg += `• *Jadwal:* ${formatSchedule(loan.start_date, loan.end_date)}\n`
+    msg += `• *Tujuan:* ${loan.destination || '-'}${loan.purpose ? ` (${loan.purpose})` : ''}\n`
     
-    if (loan.buy_fuel === 'YA') {
-      msg += `• *Pengajuan BBM:* YA (Rp ${loan.fuel_amount || '100.000'})\n`
-    }
-
     if (customNote.trim()) {
-      msg += `• *Catatan Tambahan:* ${customNote.trim()}\n`
+      msg += `• *Catatan:* ${customNote.trim()}\n`
     }
 
-    msg += `\nTerima kasih atas bantuan dan kerjasamanya. 🙏`
+    msg += `\nStatus: Menunggu *${stageStatusLabel}* ⏳\n`
+    msg += `Terima kasih! 🙏`
 
     return msg
-  }, [loan, targetPic, customNote])
+  }, [loan, currentStage, customNote])
 
   if (!loan) return null
 
