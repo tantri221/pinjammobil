@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { VehicleGrid } from './components/VehicleGrid'
 import { LoanHistoryTable } from './components/LoanHistoryTable'
@@ -25,7 +25,9 @@ import {
   Clock, 
   CheckSquare,
   ShieldCheck,
-  Menu
+  Menu,
+  Lock,
+  ArrowDownLeft
 } from 'lucide-react'
 
 const AUTH_USER_KEY = 'pinjammobil_auth_user'
@@ -276,13 +278,74 @@ export default function App() {
     }
   }
 
+  // --- Identifikasi Peminjaman Aktif yang Sedang Digunakan (Khusus Staff) ---
+  const isStaff = currentUser?.role === 'staff'
+  const userScopedLoans = useMemo(() => {
+    return isStaff ? loans.filter(l => isLoanOwnedByUser(l, currentUser)) : loans
+  }, [loans, isStaff, currentUser])
+
+  // Deteksi jika peminjam/staff sedang membawa armada keluar gerbang (belum check in / kembali)
+  const activeOngoingLoan = useMemo(() => {
+    if (!isStaff) return null
+    return userScopedLoans.find(l => {
+      const sec = l.security || {}
+      const isOut = sec.gate_status === 'out' || (Boolean(sec.out_time) && !sec.in_time) || l.status === 'in_use'
+      const isNotFinished = l.status !== 'completed' && l.status !== 'rejected'
+      return isOut && isNotFinished
+    }) || null
+  }, [isStaff, userScopedLoans])
+
+  const isLockedToReturn = Boolean(activeOngoingLoan)
+
+  // Jika staff sedang membawa armada di luar, kunci navigasi ke menu pengembalian (security)
+  useEffect(() => {
+    if (isLockedToReturn && (activeTab === 'vehicles' || activeTab === 'approvals')) {
+      setActiveTab('security')
+    }
+  }, [isLockedToReturn, activeTab])
+
+  const handleLockedNotice = () => {
+    if (!activeOngoingLoan) return
+    showToast(
+      `Peminjaman terkunci! Anda masih menggunakan unit ${activeOngoingLoan.vehicle_name} (${activeOngoingLoan.license_plate}). Kembalikan kendaraan terlebih dahulu di Pos Security.`,
+      'error'
+    )
+    setActiveTab('security')
+    setIsMobileMenuOpen(false)
+  }
+
+  // Helper pemformat tanggal lokal
+  const formatDateTime = (dateStr) => {
+    if (!dateStr) return '-'
+    try {
+      const d = new Date(dateStr)
+      return d.toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch {
+      return dateStr
+    }
+  }
+
   // --- Loan CRUD Handlers ---
   const handleOpenBorrowModal = (vehicle = null) => {
+    if (isLockedToReturn) {
+      handleLockedNotice()
+      return
+    }
     setSelectedVehicle(vehicle)
     setIsLoanModalOpen(true)
   }
 
   const handleSubmitLoan = async (formData) => {
+    if (isLockedToReturn) {
+      showToast('Pengajuan ditolak. Anda masih memiliki peminjaman aktif yang belum dikembalikan.', 'error')
+      return
+    }
     const res = await api.createLoan(formData)
     if (res.success) {
       showToast('Peminjaman mobil berhasil didaftarkan!')
@@ -380,7 +443,10 @@ export default function App() {
     const res = await api.recordSecurityGateOut(loanId, gateData, securityUser)
     if (res.success) {
       showToast('Armada resmi tercatat keluar pos security.')
-      loadData()
+      await loadData()
+      if (isStaff) {
+        setActiveTab('security')
+      }
       return { success: true }
     } else {
       showToast(res.error || 'Gagal mencatat mobil keluar.', 'error')
@@ -391,8 +457,8 @@ export default function App() {
   const handleSecurityGateIn = async (loanId, vehicleId, gateData, securityUser) => {
     const res = await api.recordSecurityGateIn(loanId, vehicleId, gateData, securityUser)
     if (res.success) {
-      showToast('Armada telah kembali di pos security & siap digunakan berikutnya.')
-      loadData()
+      showToast('Armada telah kembali di pos security & siap digunakan berikutnya. Peminjaman baru telah aktif!')
+      await loadData()
       return { success: true }
     } else {
       showToast(res.error || 'Gagal mencatat mobil kembali.', 'error')
@@ -404,9 +470,6 @@ export default function App() {
   if (!currentUser) {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />
   }
-
-  const isStaff = currentUser?.role === 'staff'
-  const userScopedLoans = isStaff ? loans.filter(l => isLoanOwnedByUser(l, currentUser)) : loans
 
   const availableCount = vehicles.filter(v => v.status === 'available').length
   const borrowedCount = vehicles.filter(v => v.status === 'borrowed').length
@@ -491,12 +554,83 @@ export default function App() {
             vehicleCount={vehicles.length}
             pendingApprovalCount={userPendingApprovalCount}
             securityPendingCount={securityPendingCount}
+            isLockedToReturn={isLockedToReturn}
+            activeOngoingLoan={activeOngoingLoan}
+            onLockedNotice={handleLockedNotice}
           />
         </div>
 
         {/* KOLOM KANAN: KONTEN UTAMA */}
         <main className="w-full lg:w-3/4 flex-1 min-w-0 space-y-4 sm:space-y-6">
           
+          {/* BANNER FOKUS PENGEMBALIAN KETIKA KENDARAAN SEDANG DIGUNAKAN (KHUSUS STAFF) */}
+          {isLockedToReturn && activeOngoingLoan && (
+            <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-orange-500/15 border-2 border-amber-400/90 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3 animate-in fade-in duration-300">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shrink-0 shadow-sm mt-0.5">
+                    <Lock className="w-5 h-5 text-slate-950" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 animate-pulse">
+                        Menu Terkunci (Sedang Membawa Armada)
+                      </span>
+                      <span className="text-[11px] text-amber-900 font-semibold">
+                        SOP Serah Terima Pengembalian
+                      </span>
+                    </div>
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900 mt-0.5">
+                      {activeOngoingLoan.vehicle_name} ({activeOngoingLoan.license_plate})
+                    </h2>
+                    <p className="text-xs text-amber-950/80 mt-0.5 leading-relaxed">
+                      Anda tidak dapat mengajukan peminjaman baru sampai kendaraan ini selesai diperiksa & dikembalikan di Pos Security.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="shrink-0 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('security')}
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white shadow-md flex items-center justify-center gap-2 transition cursor-pointer"
+                  >
+                    <ArrowDownLeft className="w-4 h-4 text-emerald-400" />
+                    <span>Lapor Mobil Kembali di Pos Security</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Rincian Singkat Perjalanan */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-amber-300/60 text-xs">
+                <div className="bg-white/70 backdrop-blur-xs p-2 rounded-lg border border-amber-200/60">
+                  <span className="text-[10px] text-slate-400 block font-semibold">Waktu Keluar:</span>
+                  <span className="font-bold text-slate-800">
+                    {formatDateTime(activeOngoingLoan.security?.out_time || activeOngoingLoan.start_date)}
+                  </span>
+                </div>
+                <div className="bg-white/70 backdrop-blur-xs p-2 rounded-lg border border-amber-200/60">
+                  <span className="text-[10px] text-slate-400 block font-semibold">Petugas Security Keluar:</span>
+                  <span className="font-bold text-emerald-700">
+                    {activeOngoingLoan.security?.out_by || 'Security Pos Gerbang'}
+                  </span>
+                </div>
+                <div className="bg-white/70 backdrop-blur-xs p-2 rounded-lg border border-amber-200/60">
+                  <span className="text-[10px] text-slate-400 block font-semibold">KM Awal Keluar:</span>
+                  <span className="font-mono font-bold text-slate-800">
+                    {(activeOngoingLoan.security?.out_km || activeOngoingLoan.start_mileage || 0).toLocaleString('id-ID')} KM
+                  </span>
+                </div>
+                <div className="bg-white/70 backdrop-blur-xs p-2 rounded-lg border border-amber-200/60">
+                  <span className="text-[10px] text-slate-400 block font-semibold">Tujuan / Keperluan:</span>
+                  <span className="font-bold text-slate-800 truncate block" title={activeOngoingLoan.destination || activeOngoingLoan.purpose}>
+                    {activeOngoingLoan.destination || activeOngoingLoan.purpose || '-'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Header Card Konten Kanan */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200/90 p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
@@ -512,13 +646,15 @@ export default function App() {
                   {activeTab === 'vehicles' && 'Status dan Daftar Kendaraan'}
                   {activeTab === 'loans' && 'Histori & Transaksi Peminjaman Unit'}
                   {activeTab === 'approvals' && 'Pusat Verifikasi & Persetujuan'}
-                  {activeTab === 'security' && 'Pos Pengecekan Security'}
+                  {activeTab === 'security' && (isLockedToReturn ? 'Pemeriksaan Pengembalian Armada (Pos Security)' : 'Pos Pengecekan Security')}
                 </h1>
                 <p className="text-[11px] sm:text-sm text-slate-500 mt-0.5 leading-relaxed">
                   {activeTab === 'vehicles' && 'Daftar armada kendaraan operasional yang tersedia beserta status terkini.'}
                   {activeTab === 'loans' && 'Catatan seluruh transaksi peminjaman kendaraan aktif maupun selesai.'}
                   {activeTab === 'approvals' && 'Alur otorisasi berjenjang verifikasi ketersediaan armada dan otorisasi peminjaman.'}
-                  {activeTab === 'security' && 'Pemeriksaan fisik, kilometer, serta serah terima kunci untuk Mobil Keluar & Mobil Kembali.'}
+                  {activeTab === 'security' && (isLockedToReturn
+                    ? 'Serahkan kendaraan ke Petugas Security di pos gerbang untuk pencatatan KM akhir & otorisasi pengembalian.'
+                    : 'Pemeriksaan fisik, kilometer, serta serah terima kunci untuk Mobil Keluar & Mobil Kembali.')}
                 </p>
               </div>
 
@@ -595,6 +731,7 @@ export default function App() {
                 onAddVehicle={handleOpenAddVehicle}
                 onEditVehicle={handleOpenEditVehicle}
                 onDeleteVehicle={handleDeleteVehicle}
+                isLockedToReturn={isLockedToReturn}
               />
             </div>
           )}
@@ -634,6 +771,8 @@ export default function App() {
               onGateOut={handleSecurityGateOut}
               onGateIn={handleSecurityGateIn}
               onRefresh={loadData}
+              isLockedToReturn={isLockedToReturn}
+              activeOngoingLoan={activeOngoingLoan}
             />
           )}
 
@@ -718,19 +857,28 @@ export default function App() {
       {/* MOBILE BOTTOM NAVIGATION BAR (Khusus Tampilan Smartphone / HP) */}
       {/* ============================================================ */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 text-slate-400 py-1.5 px-3 shadow-2xl flex items-center justify-around">
-        {/* 1. Tab Kendaraan */}
+        {/* 1. Tab Kendaraan (Terkunci jika staff sedang membawa armada) */}
         <button
           type="button"
           onClick={() => {
+            if (isLockedToReturn) {
+              handleLockedNotice()
+              return
+            }
             setActiveTab('vehicles')
             setIsMobileMenuOpen(false)
           }}
           className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-lg transition-colors cursor-pointer ${
-            activeTab === 'vehicles' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-white'
+            activeTab === 'vehicles'
+              ? 'text-sky-400 font-bold'
+              : isLockedToReturn
+              ? 'text-slate-500 opacity-60'
+              : 'text-slate-400 hover:text-white'
           }`}
+          title={isLockedToReturn ? 'Menu terkunci saat membawa armada' : 'Daftar Kendaraan'}
         >
-          <Layers className="h-4 w-4" />
-          <span className="text-[10px]">Kendaraan</span>
+          {isLockedToReturn ? <Lock className="h-4 w-4 text-amber-400" /> : <Layers className="h-4 w-4" />}
+          <span className="text-[10px]">{isLockedToReturn ? 'Terkunci' : 'Kendaraan'}</span>
         </button>
 
         {/* 2. Tab Histori */}
@@ -751,21 +899,38 @@ export default function App() {
           )}
         </button>
 
-        {/* 3. Tombol Pinjam Cepat (Tengah, Menonjol) */}
-        <button
-          type="button"
-          onClick={() => {
-            setIsMobileMenuOpen(false)
-            handleOpenBorrowModal(null)
-          }}
-          className="flex flex-col items-center -mt-5 cursor-pointer group"
-          title="Input Peminjaman Baru"
-        >
-          <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-sky-600 to-sky-400 text-white flex items-center justify-center shadow-lg shadow-sky-500/40 border-2 border-slate-900 group-hover:scale-105 transition-transform">
-            <Plus className="h-6 w-6 stroke-[2.5]" />
-          </div>
-          <span className="text-[10px] font-bold text-sky-400 mt-0.5">Pinjam</span>
-        </button>
+        {/* 3. Tombol Tengah Menonjol (Jika Terkunci: Tombol Pengembalian Cepat) */}
+        {isLockedToReturn ? (
+          <button
+            type="button"
+            onClick={() => {
+              setIsMobileMenuOpen(false)
+              setActiveTab('security')
+            }}
+            className="flex flex-col items-center -mt-5 cursor-pointer group"
+            title="SOP Pengembalian Mobil di Pos Security"
+          >
+            <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-amber-600 to-amber-400 text-slate-950 flex items-center justify-center shadow-lg shadow-amber-500/40 border-2 border-slate-900 group-hover:scale-105 transition-transform animate-pulse">
+              <ArrowDownLeft className="h-6 w-6 stroke-[2.5]" />
+            </div>
+            <span className="text-[10px] font-black text-amber-400 mt-0.5">Kembali</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setIsMobileMenuOpen(false)
+              handleOpenBorrowModal(null)
+            }}
+            className="flex flex-col items-center -mt-5 cursor-pointer group"
+            title="Input Peminjaman Baru"
+          >
+            <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-sky-600 to-sky-400 text-white flex items-center justify-center shadow-lg shadow-sky-500/40 border-2 border-slate-900 group-hover:scale-105 transition-transform">
+              <Plus className="h-6 w-6 stroke-[2.5]" />
+            </div>
+            <span className="text-[10px] font-bold text-sky-400 mt-0.5">Pinjam</span>
+          </button>
+        )}
 
         {/* 4. Tab Approval (Jika berhak) atau Security */}
         {canAccessApprovals ? (
@@ -795,16 +960,26 @@ export default function App() {
               setIsMobileMenuOpen(false)
             }}
             className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-lg transition-colors relative cursor-pointer ${
-              activeTab === 'security' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-white'
+              activeTab === 'security'
+                ? isLockedToReturn ? 'text-amber-400 font-bold' : 'text-sky-400 font-bold'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
-            <ShieldCheck className="h-4 w-4" />
-            <span className="text-[10px]">Security</span>
-            {securityPendingCount > 0 && (
+            {isLockedToReturn ? (
+              <ArrowDownLeft className="h-4 w-4 text-amber-400 animate-pulse" />
+            ) : (
+              <ShieldCheck className="h-4 w-4" />
+            )}
+            <span className="text-[10px]">{isLockedToReturn ? 'Kembali' : 'Security'}</span>
+            {isLockedToReturn ? (
+              <span className="absolute top-0.5 right-1 px-1 rounded-full text-[8px] font-black bg-amber-400 text-slate-950 animate-pulse">
+                !
+              </span>
+            ) : securityPendingCount > 0 ? (
               <span className="absolute top-0.5 right-1 px-1 rounded-full text-[9px] font-black bg-emerald-500 text-slate-950">
                 {securityPendingCount}
               </span>
-            )}
+            ) : null}
           </button>
         )}
 

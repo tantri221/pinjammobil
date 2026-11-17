@@ -15,7 +15,9 @@ import {
   UserCog,
   Trash2,
   PhoneCall,
-  X
+  X,
+  Lock,
+  ArrowDownLeft
 } from 'lucide-react'
 
 export function Sidebar({
@@ -34,7 +36,10 @@ export function Sidebar({
   loanCount = 0,
   vehicleCount = 0,
   pendingApprovalCount = 0,
-  securityPendingCount = 0
+  securityPendingCount = 0,
+  isLockedToReturn = false,
+  activeOngoingLoan = null,
+  onLockedNotice = null
 }) {
   const isAdmin = currentUser?.role === 'admin'
   const initial = currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'
@@ -157,20 +162,37 @@ export function Sidebar({
           {/* Menu 1: Status & Histori Utama */}
           <button
             type="button"
-            onClick={() => handleNavClick('vehicles')}
+            onClick={() => {
+              if (isLockedToReturn) {
+                if (onLockedNotice) onLockedNotice()
+                return
+              }
+              handleNavClick('vehicles')
+            }}
             className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold transition flex items-center justify-between cursor-pointer ${
               activeTab === 'vehicles'
                 ? 'bg-sky-600 text-white shadow-md'
+                : isLockedToReturn
+                ? 'text-slate-400 bg-slate-800/40 hover:bg-slate-800/60'
                 : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
             }`}
           >
             <div className="flex items-center gap-2">
               <Layers className="h-4 w-4" />
               <span>Status dan Daftar Kendaraan</span>
+              {isLockedToReturn && (
+                <Lock className="h-3 w-3 text-amber-400 shrink-0" title="Terkunci saat membawa armada" />
+              )}
             </div>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/20 text-white font-mono">
-              {vehicleCount}
-            </span>
+            {isLockedToReturn ? (
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/30 font-bold uppercase">
+                Terkunci
+              </span>
+            ) : (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/20 text-white font-mono">
+                {vehicleCount}
+              </span>
+            )}
           </button>
 
           {/* Menu 2: Histori Peminjaman */}
@@ -217,39 +239,66 @@ export function Sidebar({
             </button>
           )}
 
-          {/* Menu 4: Pengecekan Security (Mobil Keluar & Mobil Kembali) */}
+          {/* Menu 4: Pengecekan Security / Pengembalian Mobil */}
           <button
             type="button"
             onClick={() => handleNavClick('security')}
             className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold transition flex items-center justify-between cursor-pointer ${
               activeTab === 'security'
-                ? 'bg-sky-600 text-white shadow-md'
+                ? isLockedToReturn ? 'bg-amber-600 text-white shadow-md ring-2 ring-amber-400/50' : 'bg-sky-600 text-white shadow-md'
+                : isLockedToReturn
+                ? 'bg-amber-950/40 text-amber-200 border border-amber-800/60 hover:bg-amber-900/60'
                 : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
             }`}
           >
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4" />
-              <span>Pengecekan Security</span>
+              {isLockedToReturn ? (
+                <ArrowDownLeft className="h-4 w-4 text-amber-300" />
+              ) : (
+                <ShieldCheck className="h-4 w-4" />
+              )}
+              <span>{isLockedToReturn ? 'Pengembalian Mobil (Pos)' : 'Pengecekan Security'}</span>
             </div>
-            {securityPendingCount > 0 && (
+            {isLockedToReturn ? (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black animate-pulse">
+                Wajib Kembali
+              </span>
+            ) : securityPendingCount > 0 ? (
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 font-black shadow-xs">
                 {securityPendingCount}
               </span>
-            )}
+            ) : null}
           </button>
 
-          {/* Quick Action: Tambah Pinjam Baru */}
-          <button
-            type="button"
-            onClick={() => handleActionClick(() => onOpenLoanModal(null))}
-            className="w-full text-left px-3.5 py-2.5 rounded-xl font-semibold transition text-emerald-300 bg-emerald-950/40 border border-emerald-800/60 hover:bg-emerald-900/60 hover:text-white flex items-center justify-between cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              <span>Input Peminjaman Baru</span>
-            </div>
-            <span className="text-xs">➕</span>
-          </button>
+          {/* Quick Action: Tambah Pinjam Baru (Terkunci jika sedang membawa armada) */}
+          {isLockedToReturn ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (onLockedNotice) onLockedNotice()
+              }}
+              className="w-full text-left px-3.5 py-2.5 rounded-xl font-semibold transition text-slate-400 bg-slate-800/50 border border-slate-700/60 flex items-center justify-between cursor-not-allowed opacity-75"
+              title="Menu peminjaman baru terkunci. Selesaikan pengembalian unit terlebih dahulu di Pos Security."
+            >
+              <div className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-amber-400" />
+                <span>Input Pinjam (Terkunci)</span>
+              </div>
+              <span className="text-[10px] text-amber-400 font-bold">🔒 Mobil di Luar</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleActionClick(() => onOpenLoanModal(null))}
+              className="w-full text-left px-3.5 py-2.5 rounded-xl font-semibold transition text-emerald-300 bg-emerald-950/40 border border-emerald-800/60 hover:bg-emerald-900/60 hover:text-white flex items-center justify-between cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                <span>Input Peminjaman Baru</span>
+              </div>
+              <span className="text-xs">➕</span>
+            </button>
+          )}
 
           {/* Menu Khusus Admin IT */}
           {isAdmin && (

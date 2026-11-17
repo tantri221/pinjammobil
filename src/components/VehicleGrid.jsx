@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Search, Plus, Layers } from 'lucide-react'
 import { VehicleCard } from './VehicleCard'
 
-export function VehicleGrid({ vehicles = [], isAdmin = false, onBorrow, onAddVehicle, onEditVehicle, onDeleteVehicle }) {
+export function VehicleGrid({ vehicles = [], isAdmin = false, onBorrow, onAddVehicle, onEditVehicle, onDeleteVehicle, isLockedToReturn = false }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
 
@@ -87,6 +87,7 @@ export function VehicleGrid({ vehicles = [], isAdmin = false, onBorrow, onAddVeh
               onBorrow={onBorrow}
               onEdit={onEditVehicle}
               onDelete={onDeleteVehicle}
+              isLockedToReturn={isLockedToReturn}
             />
           ))}
         </div>

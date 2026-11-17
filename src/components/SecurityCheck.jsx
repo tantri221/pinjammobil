@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { 
   ShieldCheck, 
   Car, 
@@ -30,11 +30,20 @@ export function SecurityCheck({
   securityCodes = [],
   onGateOut,
   onGateIn,
-  onRefresh
+  onRefresh,
+  isLockedToReturn = false,
+  activeOngoingLoan = null
 }) {
   // Sub-menu: 'out' (Mobil Keluar) | 'in' (Mobil Kembali) | 'history' (Riwayat)
-  const [activeSubTab, setActiveSubTab] = useState('out')
+  const [activeSubTab, setActiveSubTab] = useState(isLockedToReturn ? 'in' : 'out')
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Jika akun terkunci dalam status membawa mobil keluar, selalu arahkan sub-tab ke pengembalian ('in')
+  useEffect(() => {
+    if (isLockedToReturn) {
+      setActiveSubTab('in')
+    }
+  }, [isLockedToReturn])
 
   // Active Security Officers
   const activeSecurityList = useMemo(() => {
@@ -91,19 +100,20 @@ export function SecurityCheck({
   const loansReadyForOut = useMemo(() => {
     return scopedLoans.filter(l => {
       // Syarat Mobil Keluar:
-      // Status sudah disetujui penuh (approved) dan belum check-out
+      // Status sudah disetujui penuh (approved) dan belum pernah check-out
       const sec = l.security || {}
-      return l.status === 'approved' && sec.gate_status !== 'out' && sec.gate_status !== 'in'
+      return l.status === 'approved' && sec.gate_status !== 'out' && sec.gate_status !== 'in' && !sec.out_time
     })
   }, [scopedLoans])
 
   const loansCurrentlyOut = useMemo(() => {
     return scopedLoans.filter(l => {
       // Syarat Mobil Kembali:
-      // Sudah check out atau status approved yang sedang berjalan
+      // Sudah check out atau status approved yang sedang berjalan di luar dan belum dikembalikan
       const sec = l.security || {}
-      return (l.status === 'approved' && sec.gate_status === 'out') || 
-             (l.status === 'approved' && sec.gate_status !== 'in')
+      const isOut = sec.gate_status === 'out' || (Boolean(sec.out_time) && !sec.in_time) || l.status === 'in_use'
+      const isNotFinished = l.status !== 'completed' && l.status !== 'rejected'
+      return isOut && isNotFinished
     })
   }, [scopedLoans])
 
@@ -308,31 +318,35 @@ export function SecurityCheck({
         <div className="flex flex-wrap items-center gap-1.5">
           
           {/* Sub-menu 1: Mobil Keluar */}
-          <button
-            onClick={() => setActiveSubTab('out')}
-            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
-              activeSubTab === 'out'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            <ArrowUpRight className="h-4 w-4" />
-            <span>Mobil Keluar (Gate Out)</span>
-            {loansReadyForOut.length > 0 && (
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                activeSubTab === 'out' ? 'bg-emerald-800 text-white' : 'bg-emerald-100 text-emerald-800'
-              }`}>
-                {loansReadyForOut.length}
-              </span>
-            )}
-          </button>
+          {(!isLockedToReturn || !isStaff) && (
+            <button
+              onClick={() => setActiveSubTab('out')}
+              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+                activeSubTab === 'out'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <ArrowUpRight className="h-4 w-4" />
+              <span>Mobil Keluar (Gate Out)</span>
+              {loansReadyForOut.length > 0 && (
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                  activeSubTab === 'out' ? 'bg-emerald-800 text-white' : 'bg-emerald-100 text-emerald-800'
+                }`}>
+                  {loansReadyForOut.length}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* Sub-menu 2: Mobil Kembali */}
           <button
             onClick={() => setActiveSubTab('in')}
             className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
               activeSubTab === 'in'
-                ? 'bg-sky-600 text-white shadow-xs'
+                ? isLockedToReturn ? 'bg-amber-600 text-white shadow-xs ring-2 ring-amber-400' : 'bg-sky-600 text-white shadow-xs'
+                : isLockedToReturn
+                ? 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
@@ -340,9 +354,14 @@ export function SecurityCheck({
             <span>Mobil Kembali (Gate In)</span>
             {loansCurrentlyOut.length > 0 && (
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                activeSubTab === 'in' ? 'bg-sky-800 text-white' : 'bg-amber-100 text-amber-800'
+                activeSubTab === 'in' ? 'bg-black/20 text-white' : 'bg-amber-100 text-amber-800'
               }`}>
                 {loansCurrentlyOut.length}
+              </span>
+            )}
+            {isLockedToReturn && isStaff && (
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-400 text-slate-950 font-black animate-pulse">
+                Wajib Selesai
               </span>
             )}
           </button>
@@ -387,6 +406,25 @@ export function SecurityCheck({
           className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:border-sky-500 focus:bg-white bg-slate-50/50 outline-none"
         />
       </div>
+
+      {/* Banner Khusus Mode Terkunci Pengembalian (Staff) */}
+      {isLockedToReturn && isStaff && activeSubTab === 'in' && (
+        <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-start gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-800 flex items-center justify-center font-bold shrink-0 mt-0.5">
+              <Lock className="w-4 h-4 text-amber-700" />
+            </div>
+            <div>
+              <span className="font-bold text-slate-900 block text-xs sm:text-sm">
+                SOP Pengembalian Armada Sedang Berlangsung
+              </span>
+              <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+                Unit kendaraan saat ini tercatat sedang Anda gunakan di luar kantor. Silakan klik tombol <strong>"Pemeriksaan Mobil Kembali"</strong> di bawah saat tiba di pos gerbang dan serahkan kepada Petugas Security untuk verifikasi KM akhir & PIN Security.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Konten Utama */}
       {displayLoans.length === 0 ? (

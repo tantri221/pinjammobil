@@ -1,7 +1,7 @@
 import React from 'react'
 import { Fuel, Users, Key, Edit, Trash2 } from 'lucide-react'
 
-export function VehicleCard({ vehicle, isAdmin = false, onBorrow, onEdit, onDelete }) {
+export function VehicleCard({ vehicle, isAdmin = false, onBorrow, onEdit, onDelete, isLockedToReturn = false }) {
   const statusConfig = {
     available: {
       label: 'Tersedia',
@@ -124,15 +124,23 @@ export function VehicleCard({ vehicle, isAdmin = false, onBorrow, onEdit, onDele
       {/* Button Action */}
       <div className="pt-2">
         <button
-          disabled={!currentStatus.canBorrow}
-          onClick={() => onBorrow(vehicle)}
-          className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer ${
-            currentStatus.canBorrow
-              ? 'bg-sky-600 hover:bg-sky-700 text-white'
+          disabled={!currentStatus.canBorrow || isLockedToReturn}
+          onClick={() => {
+            if (isLockedToReturn) return
+            onBorrow(vehicle)
+          }}
+          className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm ${
+            isLockedToReturn
+              ? 'bg-amber-50 text-amber-700 border border-amber-200 cursor-not-allowed opacity-90'
+              : currentStatus.canBorrow
+              ? 'bg-sky-600 hover:bg-sky-700 text-white cursor-pointer'
               : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
           }`}
+          title={isLockedToReturn ? 'Anda masih menggunakan armada lain. Harap kembalikan terlebih dahulu.' : undefined}
         >
-          {currentStatus.canBorrow ? (
+          {isLockedToReturn ? (
+            <span>🔒 Terkunci (Kembalikan Mobil Dahulu)</span>
+          ) : currentStatus.canBorrow ? (
             <>
               <Key className="h-3.5 w-3.5" />
               <span>Pinjam Unit Ini</span>
