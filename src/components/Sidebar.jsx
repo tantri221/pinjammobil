@@ -63,6 +63,23 @@ export function Sidebar({
   // Wewenang akses menu Verifikasi & Persetujuan (Hanya untuk Admin, GA, SPV, ADH - Disembunyikan untuk Staff / Peminjam)
   const canAccessApprovals = ['admin', 'ga', 'spv', 'adh'].includes(userRole)
 
+  // Otomatis pindah halaman dan minimize sidebar saat menu dipilih
+  const handleNavClick = (tab) => {
+    setActiveTab(tab)
+    if (onCloseSidebar) {
+      onCloseSidebar()
+    }
+  }
+
+  const handleActionClick = (actionFn) => {
+    if (onCloseSidebar) {
+      onCloseSidebar()
+    }
+    if (actionFn) {
+      actionFn()
+    }
+  }
+
   return (
     <aside className="w-full lg:w-72 shrink-0 bg-slate-900 text-slate-100 rounded-2xl shadow-xl border border-slate-800 overflow-hidden flex flex-col justify-between">
       <div>
@@ -115,7 +132,7 @@ export function Sidebar({
           <div className="mt-3 pt-2.5 border-t border-slate-700/60">
             <button
               type="button"
-              onClick={onOpenEditProfile}
+              onClick={() => handleActionClick(onOpenEditProfile)}
               className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg text-xs font-semibold bg-slate-700/60 hover:bg-sky-600 text-slate-200 hover:text-white transition border border-slate-600/50 hover:border-sky-500 cursor-pointer shadow-xs group"
               title="Perbarui informasi profil atau ganti kata sandi"
             >
@@ -140,7 +157,7 @@ export function Sidebar({
           {/* Menu 1: Status & Histori Utama */}
           <button
             type="button"
-            onClick={() => setActiveTab('vehicles')}
+            onClick={() => handleNavClick('vehicles')}
             className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold transition flex items-center justify-between cursor-pointer ${
               activeTab === 'vehicles'
                 ? 'bg-sky-600 text-white shadow-md'
@@ -159,7 +176,7 @@ export function Sidebar({
           {/* Menu 2: Histori Peminjaman */}
           <button
             type="button"
-            onClick={() => setActiveTab('loans')}
+            onClick={() => handleNavClick('loans')}
             className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold transition flex items-center justify-between cursor-pointer ${
               activeTab === 'loans'
                 ? 'bg-sky-600 text-white shadow-md'
@@ -181,7 +198,7 @@ export function Sidebar({
           {canAccessApprovals && (
             <button
               type="button"
-              onClick={() => setActiveTab('approvals')}
+              onClick={() => handleNavClick('approvals')}
               className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold transition flex items-center justify-between cursor-pointer ${
                 activeTab === 'approvals'
                   ? 'bg-sky-600 text-white shadow-md'
@@ -203,7 +220,7 @@ export function Sidebar({
           {/* Menu 4: Pengecekan Security (Mobil Keluar & Mobil Kembali) */}
           <button
             type="button"
-            onClick={() => setActiveTab('security')}
+            onClick={() => handleNavClick('security')}
             className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold transition flex items-center justify-between cursor-pointer ${
               activeTab === 'security'
                 ? 'bg-sky-600 text-white shadow-md'
@@ -224,7 +241,7 @@ export function Sidebar({
           {/* Quick Action: Tambah Pinjam Baru */}
           <button
             type="button"
-            onClick={() => onOpenLoanModal(null)}
+            onClick={() => handleActionClick(() => onOpenLoanModal(null))}
             className="w-full text-left px-3.5 py-2.5 rounded-xl font-semibold transition text-emerald-300 bg-emerald-950/40 border border-emerald-800/60 hover:bg-emerald-900/60 hover:text-white flex items-center justify-between cursor-pointer"
           >
             <div className="flex items-center gap-2">
@@ -244,7 +261,7 @@ export function Sidebar({
               {/* Kelola Kode Security (6 Petugas / Pos) */}
               <button
                 type="button"
-                onClick={onOpenSecurityCodes}
+                onClick={() => handleActionClick(onOpenSecurityCodes)}
                 className="w-full text-left px-3.5 py-2.5 rounded-xl font-semibold transition text-emerald-200 bg-emerald-950/40 border border-emerald-800/60 hover:bg-emerald-900/60 hover:text-white flex items-center justify-between cursor-pointer"
               >
                 <div className="flex items-center gap-2">
@@ -258,7 +275,7 @@ export function Sidebar({
 
               <button
                 type="button"
-                onClick={onOpenUserManagement}
+                onClick={() => handleActionClick(onOpenUserManagement)}
                 className="w-full text-left px-3.5 py-2.5 rounded-xl font-semibold transition text-indigo-200 bg-indigo-950/40 border border-indigo-800/60 hover:bg-indigo-900/60 hover:text-white flex items-center justify-between cursor-pointer"
               >
                 <div className="flex items-center gap-2">
@@ -271,7 +288,7 @@ export function Sidebar({
               {/* Kelola Kontak WA PIC (GA, SPV, ADH) */}
               <button
                 type="button"
-                onClick={onOpenPicContacts}
+                onClick={() => handleActionClick(onOpenPicContacts)}
                 className="w-full text-left px-3.5 py-2.5 rounded-xl font-semibold transition text-sky-200 bg-sky-950/40 border border-sky-800/60 hover:bg-sky-900/60 hover:text-white flex items-center justify-between cursor-pointer"
                 title="Input dan kelola nomor WhatsApp PIC GA, SPV, dan ADH untuk follow up"
               >
@@ -287,7 +304,7 @@ export function Sidebar({
               {/* Reset / Hapus Histori Peminjaman (Admin Only) */}
               <button
                 type="button"
-                onClick={onOpenResetLoans}
+                onClick={() => handleActionClick(onOpenResetLoans)}
                 className="w-full text-left px-3.5 py-2.5 rounded-xl font-semibold transition text-rose-200 bg-rose-950/40 border border-rose-800/60 hover:bg-rose-900/60 hover:text-white flex items-center justify-between cursor-pointer"
                 title="Tools Admin: Bersihkan atau reset basis data riwayat peminjaman"
               >
@@ -306,7 +323,7 @@ export function Sidebar({
           <div className="pt-1">
             <button
               type="button"
-              onClick={onOpenSettings}
+              onClick={() => handleActionClick(onOpenSettings)}
               className="w-full text-left px-3.5 py-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition flex items-center gap-2 cursor-pointer text-[11px]"
             >
               <Database className="h-3.5 w-3.5" />

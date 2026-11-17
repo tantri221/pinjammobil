@@ -441,14 +441,38 @@ export default function App() {
           <Sidebar
             currentUser={currentUser}
             activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            onOpenLoanModal={() => handleOpenBorrowModal(null)}
-            onOpenSecurityCodes={() => setIsSecurityCodesOpen(true)}
-            onOpenUserManagement={() => setIsUserManagementOpen(true)}
-            onOpenEditProfile={() => setIsProfileModalOpen(true)}
-            onOpenResetLoans={() => setIsResetLoansOpen(true)}
-            onOpenPicContacts={() => setIsPicContactsOpen(true)}
-            onOpenSettings={() => setIsSettingsOpen(true)}
+            setActiveTab={(tab) => {
+              setActiveTab(tab)
+              setIsSidebarVisible(false)
+            }}
+            onOpenLoanModal={() => {
+              setIsSidebarVisible(false)
+              handleOpenBorrowModal(null)
+            }}
+            onOpenSecurityCodes={() => {
+              setIsSidebarVisible(false)
+              setIsSecurityCodesOpen(true)
+            }}
+            onOpenUserManagement={() => {
+              setIsSidebarVisible(false)
+              setIsUserManagementOpen(true)
+            }}
+            onOpenEditProfile={() => {
+              setIsSidebarVisible(false)
+              setIsProfileModalOpen(true)
+            }}
+            onOpenResetLoans={() => {
+              setIsSidebarVisible(false)
+              setIsResetLoansOpen(true)
+            }}
+            onOpenPicContacts={() => {
+              setIsSidebarVisible(false)
+              setIsPicContactsOpen(true)
+            }}
+            onOpenSettings={() => {
+              setIsSidebarVisible(false)
+              setIsSettingsOpen(true)
+            }}
             onCloseSidebar={toggleSidebar}
             onLogout={handleLogout}
             loanCount={loans.filter(l => l.status !== 'completed').length}
