@@ -14,7 +14,8 @@ import {
   KeyRound,
   UserCog,
   Trash2,
-  PhoneCall
+  PhoneCall,
+  PanelLeftClose
 } from 'lucide-react'
 
 export function Sidebar({
@@ -28,6 +29,7 @@ export function Sidebar({
   onOpenResetLoans,
   onOpenPicContacts,
   onOpenSettings,
+  onCloseSidebar,
   onLogout,
   loanCount = 0,
   vehicleCount = 0,
@@ -75,9 +77,21 @@ export function Sidebar({
               <div className="text-[11px] text-slate-400">PinjamMobil v2.0</div>
             </div>
           </div>
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30">
-            MODULAR
-          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30">
+              MODULAR
+            </span>
+            {onCloseSidebar && (
+              <button
+                type="button"
+                onClick={onCloseSidebar}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                title="Sembunyikan Menu Utama"
+              >
+                <PanelLeftClose className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Informasi Akun Aktif di Sidebar (Style Legacy) */}

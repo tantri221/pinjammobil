@@ -15,7 +15,7 @@ import { PicContactsModal } from './components/PicContactsModal'
 import { WhatsAppFollowUpModal } from './components/WhatsAppFollowUpModal'
 import { LoginPage } from './components/LoginPage'
 import { api } from './services/api'
-import { Car, AlertTriangle, RefreshCw, Plus, Layers, Clock } from 'lucide-react'
+import { Car, AlertTriangle, RefreshCw, Plus, Layers, Clock, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 
 const AUTH_USER_KEY = 'pinjammobil_auth_user'
 
@@ -38,6 +38,26 @@ export default function App() {
   
   // Navigation Tabs: 'vehicles' | 'loans'
   const [activeTab, setActiveTab] = useState('vehicles')
+
+  // Status Tampilan Sidebar Menu Utama (Tersimpan di preferensi lokal)
+  const [isSidebarVisible, setIsSidebarVisible] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pinjammobil_sidebar_visible')
+      return saved !== null ? JSON.parse(saved) : true
+    } catch {
+      return true
+    }
+  })
+
+  const toggleSidebar = () => {
+    setIsSidebarVisible(prev => {
+      const next = !prev
+      try {
+        localStorage.setItem('pinjammobil_sidebar_visible', JSON.stringify(next))
+      } catch {}
+      return next
+    })
+  }
 
   // Modals
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false)
@@ -417,32 +437,59 @@ export default function App() {
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-6 items-start">
         
         {/* KOLOM KIRI: SIDEBAR MENU UTAMA */}
-        <Sidebar
-          currentUser={currentUser}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          onOpenLoanModal={() => handleOpenBorrowModal(null)}
-          onOpenSecurityCodes={() => setIsSecurityCodesOpen(true)}
-          onOpenUserManagement={() => setIsUserManagementOpen(true)}
-          onOpenEditProfile={() => setIsProfileModalOpen(true)}
-          onOpenResetLoans={() => setIsResetLoansOpen(true)}
-          onOpenPicContacts={() => setIsPicContactsOpen(true)}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          onLogout={handleLogout}
-          loanCount={loans.filter(l => l.status !== 'completed').length}
-          vehicleCount={vehicles.length}
-          pendingApprovalCount={loans.filter(l => l.status === 'pending').length}
-          securityPendingCount={securityPendingCount}
-        />
+        {isSidebarVisible && (
+          <Sidebar
+            currentUser={currentUser}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            onOpenLoanModal={() => handleOpenBorrowModal(null)}
+            onOpenSecurityCodes={() => setIsSecurityCodesOpen(true)}
+            onOpenUserManagement={() => setIsUserManagementOpen(true)}
+            onOpenEditProfile={() => setIsProfileModalOpen(true)}
+            onOpenResetLoans={() => setIsResetLoansOpen(true)}
+            onOpenPicContacts={() => setIsPicContactsOpen(true)}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onCloseSidebar={toggleSidebar}
+            onLogout={handleLogout}
+            loanCount={loans.filter(l => l.status !== 'completed').length}
+            vehicleCount={vehicles.length}
+            pendingApprovalCount={loans.filter(l => l.status === 'pending').length}
+            securityPendingCount={securityPendingCount}
+          />
+        )}
 
-        {/* KOLOM KANAN: KONTEN UTAMA (75% LEBAR) */}
-        <main className="w-full lg:w-3/4 flex-1 min-w-0 space-y-6">
+        {/* KOLOM KANAN: KONTEN UTAMA */}
+        <main className={`w-full ${isSidebarVisible ? 'lg:w-3/4' : 'lg:w-full'} flex-1 min-w-0 space-y-6 transition-all duration-200`}>
           
           {/* Header Card Konten Kanan (Identik dengan Legacy) */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200/90 p-5 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
+                  {/* Tombol Toggle Sembunyikan / Munculkan Sidebar */}
+                  <button
+                    type="button"
+                    onClick={toggleSidebar}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer shadow-2xs ${
+                      isSidebarVisible 
+                        ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300' 
+                        : 'bg-sky-600 hover:bg-sky-700 text-white border-sky-600'
+                    }`}
+                    title={isSidebarVisible ? "Sembunyikan menu utama (Sidebar)" : "Tampilkan menu utama (Sidebar)"}
+                  >
+                    {isSidebarVisible ? (
+                      <>
+                        <PanelLeftClose className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Sembunyikan Menu</span>
+                      </>
+                    ) : (
+                      <>
+                        <PanelLeftOpen className="w-3.5 h-3.5 text-white" />
+                        <span>Buka Menu Utama</span>
+                      </>
+                    )}
+                  </button>
+
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-200/70">
                     <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse"></span>
                     <span>Database Supabase Live</span>
@@ -486,6 +533,24 @@ export default function App() {
                   title="Muat ulang data Supabase"
                 >
                   <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin text-sky-600' : ''}`} />
+                </button>
+
+                {/* Tombol Toggle Sidebar Cepat */}
+                <button
+                  type="button"
+                  onClick={toggleSidebar}
+                  className={`p-2.5 rounded-xl border transition shadow-xs cursor-pointer flex items-center justify-center ${
+                    isSidebarVisible
+                      ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                      : 'border-sky-400 bg-sky-50 hover:bg-sky-100 text-sky-700'
+                  }`}
+                  title={isSidebarVisible ? "Sembunyikan Menu Utama (Sidebar)" : "Tampilkan Menu Utama (Sidebar)"}
+                >
+                  {isSidebarVisible ? (
+                    <PanelLeftClose className="h-4 w-4" />
+                  ) : (
+                    <PanelLeftOpen className="h-4 w-4 text-sky-600" />
+                  )}
                 </button>
               </div>
             </div>
@@ -649,6 +714,19 @@ export default function App() {
           setIsPicContactsOpen(true)
         }}
       />
+
+      {/* Floating Button: Akses Cepat Buka Menu Utama ketika Sidebar disembunyikan */}
+      {!isSidebarVisible && (
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          className="fixed bottom-5 left-5 z-40 px-3.5 py-2.5 rounded-full bg-slate-900 hover:bg-sky-600 text-white font-bold text-xs shadow-2xl border border-slate-700 flex items-center gap-2 transition-all hover:scale-105 cursor-pointer animate-in fade-in"
+          title="Tampilkan Menu Utama"
+        >
+          <PanelLeftOpen className="w-4 h-4 text-sky-400" />
+          <span>Menu Utama</span>
+        </button>
+      )}
 
     </div>
   )
