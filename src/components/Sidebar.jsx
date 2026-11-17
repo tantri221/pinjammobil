@@ -58,6 +58,9 @@ export function Sidebar({
     roleBadgeClass = 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30'
   }
 
+  // Wewenang akses menu Verifikasi & Persetujuan (Hanya untuk Admin, GA, SPV, ADH - Disembunyikan untuk Staff / Peminjam)
+  const canAccessApprovals = ['admin', 'ga', 'spv', 'adh'].includes(userRole)
+
   return (
     <aside className="w-full lg:w-72 shrink-0 bg-slate-900 text-slate-100 rounded-2xl shadow-xl border border-slate-800 overflow-hidden flex flex-col justify-between">
       <div>
@@ -160,26 +163,28 @@ export function Sidebar({
             )}
           </button>
 
-          {/* Menu 3: Verifikasi & Persetujuan (GA, SPV, ADH) */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('approvals')}
-            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold transition flex items-center justify-between cursor-pointer ${
-              activeTab === 'approvals'
-                ? 'bg-sky-600 text-white shadow-md'
-                : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <CheckSquare className="h-4 w-4" />
-              <span>Verifikasi & Persetujuan</span>
-            </div>
-            {pendingApprovalCount > 0 && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black shadow-xs">
-                {pendingApprovalCount}
-              </span>
-            )}
-          </button>
+          {/* Menu 3: Verifikasi & Persetujuan (Hanya untuk Admin, GA, SPV, ADH - Disembunyikan untuk Staff / Peminjam) */}
+          {canAccessApprovals && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('approvals')}
+              className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold transition flex items-center justify-between cursor-pointer ${
+                activeTab === 'approvals'
+                  ? 'bg-sky-600 text-white shadow-md'
+                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <CheckSquare className="h-4 w-4" />
+                <span>Verifikasi & Persetujuan</span>
+              </div>
+              {pendingApprovalCount > 0 && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black shadow-xs">
+                  {pendingApprovalCount}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* Menu 4: Pengecekan Security (Mobil Keluar & Mobil Kembali) */}
           <button

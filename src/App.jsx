@@ -71,6 +71,14 @@ export default function App() {
   const isAdmin = currentUser?.role === 'admin'
   const canManageVehicles = ['admin', 'ga', 'adh'].includes(currentUser?.role)
   const canManageLoans = ['admin', 'ga', 'adh', 'spv'].includes(currentUser?.role)
+  const canAccessApprovals = ['admin', 'ga', 'adh', 'spv'].includes(currentUser?.role?.toLowerCase())
+
+  // Pastikan akun staff/peminjam tidak dapat membuka tab verifikasi & persetujuan
+  useEffect(() => {
+    if (!canAccessApprovals && activeTab === 'approvals') {
+      setActiveTab('vehicles')
+    }
+  }, [canAccessApprovals, activeTab])
 
   const loadData = useCallback(async () => {
     if (!currentUser) return
@@ -541,8 +549,8 @@ export default function App() {
             />
           )}
 
-          {/* TAB 3: VERIFIKASI & PERSETUJUAN (GA, SPV, ADH) */}
-          {activeTab === 'approvals' && (
+          {/* TAB 3: VERIFIKASI & PERSETUJUAN (GA, SPV, ADH, ADMIN) */}
+          {activeTab === 'approvals' && canAccessApprovals && (
             <ApprovalCenter
               loans={loans}
               currentUser={currentUser}
