@@ -129,8 +129,9 @@ export function WhatsAppFollowUpModal({
     const isTD = isTestDriveLoan(loan, loan.vehicles)
 
     let msg = `*FOLLOW UP VERIFIKASI & PERSETUJUAN PINJAM MOBIL*\n`
-    msg += `Sistem Informasi PinjamMobil Operasional\n\n`
-    msg += `Halo ${targetPic.name || targetPic.roleTitle},\n`
+    msg += `Sistem Informasi PinjamMobil Operasional\n`
+    msg += `Agung Toyota Singaraja\n`
+    msg += `Semangat Pagi,\n`
     msg += `Mohon kesediaannya untuk memproses pengajuan peminjaman kendaraan berikut yang saat ini sedang menunggu *${targetPic.stageActionName}*:\n\n`
     msg += `📋 *Rincian Pengajuan Tiket:*\n`
     msg += `• *Nama Peminjam:* ${loan.borrower_name || '-'} (Divisi ${loan.division || '-'})\n`
@@ -147,8 +148,7 @@ export function WhatsAppFollowUpModal({
       msg += `• *Catatan Tambahan:* ${customNote.trim()}\n`
     }
 
-    msg += `\nMohon untuk membuka aplikasi web PinjamMobil dan memproses verifikasi / persetujuan tiket tersebut.\n\n`
-    msg += `Terima kasih atas bantuan dan kerjasamanya. 🙏`
+    msg += `\nTerima kasih atas bantuan dan kerjasamanya. 🙏`
 
     return msg
   }, [loan, targetPic, customNote])
