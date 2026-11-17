@@ -22,8 +22,6 @@ import {
   Plus, 
   Layers, 
   Clock, 
-  PanelLeftClose, 
-  PanelLeftOpen,
   CheckSquare,
   ShieldCheck,
   Menu
@@ -51,25 +49,9 @@ export default function App() {
   // Navigation Tabs: 'vehicles' | 'loans'
   const [activeTab, setActiveTab] = useState('vehicles')
 
-  // Status Tampilan Sidebar Menu Utama (Tersimpan di preferensi lokal)
-  const [isSidebarVisible, setIsSidebarVisible] = useState(() => {
-    try {
-      const saved = localStorage.getItem('pinjammobil_sidebar_visible')
-      return saved !== null ? JSON.parse(saved) : true
-    } catch {
-      return true
-    }
-  })
-
-  const toggleSidebar = () => {
-    setIsSidebarVisible(prev => {
-      const next = !prev
-      try {
-        localStorage.setItem('pinjammobil_sidebar_visible', JSON.stringify(next))
-      } catch {}
-      return next
-    })
-  }
+  // Status Drawer Menu Utama di Mobile / HP (Dibuka via Bottom Navigation Bar)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const toggleMobileMenu = () => setIsMobileMenuOpen(prev => !prev)
 
   // Modals
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false)
@@ -449,94 +431,70 @@ export default function App() {
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-6 items-start">
         
         {/* KOLOM KIRI: SIDEBAR MENU UTAMA (OFF-CANVAS DRAWER DI HP, INLINE DI DESKTOP) */}
-        {isSidebarVisible && (
-          <>
-            {/* Backdrop di Layar HP */}
-            <div
-              className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 lg:hidden transition-opacity animate-in fade-in"
-              onClick={toggleSidebar}
-            />
-
-            {/* Sidebar Container */}
-            <div className="fixed inset-y-0 left-0 z-50 w-80 max-w-[85vw] p-3 lg:p-0 lg:static lg:z-auto lg:w-72 shrink-0 animate-in slide-in-from-left duration-200 overflow-y-auto max-h-screen">
-              <Sidebar
-                currentUser={currentUser}
-                activeTab={activeTab}
-                setActiveTab={(tab) => {
-                  setActiveTab(tab)
-                  setIsSidebarVisible(false)
-                }}
-                onOpenLoanModal={() => {
-                  setIsSidebarVisible(false)
-                  handleOpenBorrowModal(null)
-                }}
-                onOpenSecurityCodes={() => {
-                  setIsSidebarVisible(false)
-                  setIsSecurityCodesOpen(true)
-                }}
-                onOpenUserManagement={() => {
-                  setIsSidebarVisible(false)
-                  setIsUserManagementOpen(true)
-                }}
-                onOpenEditProfile={() => {
-                  setIsSidebarVisible(false)
-                  setIsProfileModalOpen(true)
-                }}
-                onOpenResetLoans={() => {
-                  setIsSidebarVisible(false)
-                  setIsResetLoansOpen(true)
-                }}
-                onOpenPicContacts={() => {
-                  setIsSidebarVisible(false)
-                  setIsPicContactsOpen(true)
-                }}
-                onOpenSettings={() => {
-                  setIsSidebarVisible(false)
-                  setIsSettingsOpen(true)
-                }}
-                onCloseSidebar={toggleSidebar}
-                onLogout={handleLogout}
-                loanCount={loans.filter(l => l.status !== 'completed').length}
-                vehicleCount={vehicles.length}
-                pendingApprovalCount={loans.filter(l => l.status === 'pending').length}
-                securityPendingCount={securityPendingCount}
-              />
-            </div>
-          </>
+        {/* Backdrop di Layar HP saat Drawer Terbuka */}
+        {isMobileMenuOpen && (
+          <div
+            className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 lg:hidden transition-opacity animate-in fade-in"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
         )}
 
+        {/* Sidebar Container: di desktop selalu tampil (lg:block lg:w-72), di mobile tampil saat isMobileMenuOpen */}
+        <div className={`fixed inset-y-0 left-0 z-50 w-80 max-w-[85vw] p-3 lg:p-0 lg:static lg:z-auto lg:w-72 shrink-0 overflow-y-auto max-h-screen ${
+          isMobileMenuOpen ? 'block animate-in slide-in-from-left duration-200' : 'hidden lg:block'
+        }`}>
+          <Sidebar
+            currentUser={currentUser}
+            activeTab={activeTab}
+            setActiveTab={(tab) => {
+              setActiveTab(tab)
+              setIsMobileMenuOpen(false)
+            }}
+            onOpenLoanModal={() => {
+              setIsMobileMenuOpen(false)
+              handleOpenBorrowModal(null)
+            }}
+            onOpenSecurityCodes={() => {
+              setIsMobileMenuOpen(false)
+              setIsSecurityCodesOpen(true)
+            }}
+            onOpenUserManagement={() => {
+              setIsMobileMenuOpen(false)
+              setIsUserManagementOpen(true)
+            }}
+            onOpenEditProfile={() => {
+              setIsMobileMenuOpen(false)
+              setIsProfileModalOpen(true)
+            }}
+            onOpenResetLoans={() => {
+              setIsMobileMenuOpen(false)
+              setIsResetLoansOpen(true)
+            }}
+            onOpenPicContacts={() => {
+              setIsMobileMenuOpen(false)
+              setIsPicContactsOpen(true)
+            }}
+            onOpenSettings={() => {
+              setIsMobileMenuOpen(false)
+              setIsSettingsOpen(true)
+            }}
+            onCloseSidebar={() => setIsMobileMenuOpen(false)}
+            onLogout={handleLogout}
+            loanCount={loans.filter(l => l.status !== 'completed').length}
+            vehicleCount={vehicles.length}
+            pendingApprovalCount={loans.filter(l => l.status === 'pending').length}
+            securityPendingCount={securityPendingCount}
+          />
+        </div>
+
         {/* KOLOM KANAN: KONTEN UTAMA */}
-        <main className={`w-full ${isSidebarVisible ? 'lg:w-3/4' : 'lg:w-full'} flex-1 min-w-0 space-y-4 sm:space-y-6 transition-all duration-200`}>
+        <main className="w-full lg:w-3/4 flex-1 min-w-0 space-y-4 sm:space-y-6">
           
           {/* Header Card Konten Kanan */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200/90 p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  {/* Tombol Toggle Sembunyikan / Munculkan Sidebar */}
-                  <button
-                    type="button"
-                    onClick={toggleSidebar}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer shadow-2xs ${
-                      isSidebarVisible 
-                        ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300' 
-                        : 'bg-sky-600 hover:bg-sky-700 text-white border-sky-600'
-                    }`}
-                    title={isSidebarVisible ? "Sembunyikan menu utama (Sidebar)" : "Tampilkan menu utama (Sidebar)"}
-                  >
-                    {isSidebarVisible ? (
-                      <>
-                        <PanelLeftClose className="w-3.5 h-3.5" />
-                        <span>Sembunyikan Menu</span>
-                      </>
-                    ) : (
-                      <>
-                        <PanelLeftOpen className="w-3.5 h-3.5 text-white" />
-                        <span>Buka Menu Utama</span>
-                      </>
-                    )}
-                  </button>
-
                   <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-200/70">
                     <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse"></span>
                     <span>Database Supabase Live</span>
@@ -584,23 +542,6 @@ export default function App() {
                     title="Muat ulang data Supabase"
                   >
                     <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin text-sky-600' : ''}`} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={toggleSidebar}
-                    className={`hidden sm:flex p-2.5 rounded-xl border transition shadow-xs cursor-pointer items-center justify-center ${
-                      isSidebarVisible
-                        ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                        : 'border-sky-400 bg-sky-50 hover:bg-sky-100 text-sky-700'
-                    }`}
-                    title={isSidebarVisible ? "Sembunyikan Menu Utama" : "Tampilkan Menu Utama"}
-                  >
-                    {isSidebarVisible ? (
-                      <PanelLeftClose className="h-4 w-4" />
-                    ) : (
-                      <PanelLeftOpen className="h-4 w-4 text-sky-600" />
-                    )}
                   </button>
                 </div>
               </div>
@@ -766,19 +707,6 @@ export default function App() {
         }}
       />
 
-      {/* Floating Button: Akses Cepat Buka Menu Utama ketika Sidebar disembunyikan (Khusus Desktop) */}
-      {!isSidebarVisible && (
-        <button
-          type="button"
-          onClick={toggleSidebar}
-          className="hidden lg:flex fixed bottom-6 left-6 z-40 px-3.5 py-2.5 rounded-full bg-slate-900 hover:bg-sky-600 text-white font-bold text-xs shadow-2xl border border-slate-700 items-center gap-2 transition-all hover:scale-105 cursor-pointer animate-in fade-in"
-          title="Tampilkan Menu Utama"
-        >
-          <PanelLeftOpen className="w-4 h-4 text-sky-400" />
-          <span>Menu Utama</span>
-        </button>
-      )}
-
       {/* ============================================================ */}
       {/* MOBILE BOTTOM NAVIGATION BAR (Khusus Tampilan Smartphone / HP) */}
       {/* ============================================================ */}
@@ -788,7 +716,7 @@ export default function App() {
           type="button"
           onClick={() => {
             setActiveTab('vehicles')
-            setIsSidebarVisible(false)
+            setIsMobileMenuOpen(false)
           }}
           className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-lg transition-colors cursor-pointer ${
             activeTab === 'vehicles' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-white'
@@ -803,7 +731,7 @@ export default function App() {
           type="button"
           onClick={() => {
             setActiveTab('loans')
-            setIsSidebarVisible(false)
+            setIsMobileMenuOpen(false)
           }}
           className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-lg transition-colors relative cursor-pointer ${
             activeTab === 'loans' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-white'
@@ -820,7 +748,7 @@ export default function App() {
         <button
           type="button"
           onClick={() => {
-            setIsSidebarVisible(false)
+            setIsMobileMenuOpen(false)
             handleOpenBorrowModal(null)
           }}
           className="flex flex-col items-center -mt-5 cursor-pointer group"
@@ -838,7 +766,7 @@ export default function App() {
             type="button"
             onClick={() => {
               setActiveTab('approvals')
-              setIsSidebarVisible(false)
+              setIsMobileMenuOpen(false)
             }}
             className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-lg transition-colors relative cursor-pointer ${
               activeTab === 'approvals' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-white'
@@ -857,7 +785,7 @@ export default function App() {
             type="button"
             onClick={() => {
               setActiveTab('security')
-              setIsSidebarVisible(false)
+              setIsMobileMenuOpen(false)
             }}
             className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-lg transition-colors relative cursor-pointer ${
               activeTab === 'security' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-white'
@@ -876,9 +804,9 @@ export default function App() {
         {/* 5. Menu Drawer */}
         <button
           type="button"
-          onClick={toggleSidebar}
+          onClick={toggleMobileMenu}
           className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-lg transition-colors cursor-pointer ${
-            isSidebarVisible ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-white'
+            isMobileMenuOpen ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-white'
           }`}
         >
           <Menu className="h-4 w-4" />

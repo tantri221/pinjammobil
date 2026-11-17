@@ -15,7 +15,7 @@ import {
   UserCog,
   Trash2,
   PhoneCall,
-  PanelLeftClose
+  X
 } from 'lucide-react'
 
 export function Sidebar({
@@ -102,10 +102,10 @@ export function Sidebar({
               <button
                 type="button"
                 onClick={onCloseSidebar}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
-                title="Sembunyikan Menu Utama"
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer lg:hidden"
+                title="Tutup Menu"
               >
-                <PanelLeftClose className="w-4 h-4" />
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>
