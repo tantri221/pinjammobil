@@ -539,38 +539,24 @@ export function SecurityCheck({
                   <div className="flex items-center gap-2">
                     {/* Tombol Catat Mobil Keluar */}
                     {activeSubTab === 'out' && !isOut && !isIn && (
-                      isStaff ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-                          <Clock className="h-3.5 w-3.5 text-sky-600" />
-                          <span>Pemeriksaan fisik dilakukan oleh security gerbang</span>
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => handleOpenOutModal(loan)}
-                          className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                        >
-                          <ArrowUpRight className="h-3.5 w-3.5" />
-                          <span>Pemeriksaan Mobil Keluar</span>
-                        </button>
-                      )
+                      <button
+                        onClick={() => handleOpenOutModal(loan)}
+                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                        <span>Pemeriksaan Mobil Keluar</span>
+                      </button>
                     )}
 
                     {/* Tombol Catat Mobil Kembali */}
                     {activeSubTab === 'in' && !isIn && (
-                      isStaff ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-                          <Clock className="h-3.5 w-3.5 text-sky-600" />
-                          <span>Serahkan kunci ke pos security saat kembali</span>
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => handleOpenInModal(loan)}
-                          className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                        >
-                          <ArrowDownLeft className="h-3.5 w-3.5" />
-                          <span>Pemeriksaan Mobil Kembali</span>
-                        </button>
-                      )
+                      <button
+                        onClick={() => handleOpenInModal(loan)}
+                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <ArrowDownLeft className="h-3.5 w-3.5" />
+                        <span>Pemeriksaan Mobil Kembali</span>
+                      </button>
                     )}
 
                     {activeSubTab === 'history' && (
