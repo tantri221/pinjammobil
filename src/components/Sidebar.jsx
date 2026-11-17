@@ -17,7 +17,10 @@ import {
   PhoneCall,
   X,
   Lock,
-  ArrowDownLeft
+  ArrowDownLeft,
+  Fuel,
+  Tag,
+  PieChart
 } from 'lucide-react'
 
 export function Sidebar({
@@ -270,22 +273,41 @@ export function Sidebar({
             ) : null}
           </button>
 
-          {/* Menu 5: Laporan & Rekap BBM */}
+          {/* Menu Laporan: Sub Menu 1 - Laporan Penggunaan BBM */}
           <button
             type="button"
-            onClick={() => handleNavClick('reports')}
+            onClick={() => handleNavClick('report_fuel')}
             className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold transition flex items-center justify-between cursor-pointer ${
-              activeTab === 'reports'
+              activeTab === 'report_fuel'
+                ? 'bg-emerald-600 text-white shadow-md'
+                : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Fuel className="h-4 w-4 text-emerald-400" />
+              <span>Laporan Penggunaan BBM</span>
+            </div>
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-bold uppercase">
+              BBM
+            </span>
+          </button>
+
+          {/* Menu Laporan: Sub Menu 2 - Laporan by Peruntukan */}
+          <button
+            type="button"
+            onClick={() => handleNavClick('report_purpose')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold transition flex items-center justify-between cursor-pointer ${
+              activeTab === 'report_purpose'
                 ? 'bg-sky-600 text-white shadow-md'
                 : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
             }`}
           >
             <div className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              <span>Laporan & Rekap BBM</span>
+              <Tag className="h-4 w-4 text-sky-400" />
+              <span>Laporan by Peruntukan</span>
             </div>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30 font-bold">
-              Rekap
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30 font-bold uppercase">
+              Peruntukan
             </span>
           </button>
 

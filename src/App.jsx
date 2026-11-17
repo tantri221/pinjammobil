@@ -649,7 +649,8 @@ export default function App() {
                   {activeTab === 'loans' && 'Histori & Transaksi Peminjaman Unit'}
                   {activeTab === 'approvals' && 'Pusat Verifikasi & Persetujuan'}
                   {activeTab === 'security' && (isLockedToReturn ? 'Pemeriksaan Pengembalian Armada (Pos Security)' : 'Pos Pengecekan Security')}
-                  {activeTab === 'reports' && 'Laporan Penggunaan Armada & Rekap BBM'}
+                  {(activeTab === 'reports' || activeTab === 'report_fuel') && 'Laporan Penggunaan & Rekap BBM'}
+                  {activeTab === 'report_purpose' && 'Laporan by Peruntukan Peminjaman'}
                 </h1>
                 <p className="text-[11px] sm:text-sm text-slate-500 mt-0.5 leading-relaxed">
                   {activeTab === 'vehicles' && 'Daftar armada kendaraan operasional yang tersedia beserta status terkini.'}
@@ -658,7 +659,8 @@ export default function App() {
                   {activeTab === 'security' && (isLockedToReturn
                     ? 'Serahkan kendaraan ke Petugas Security di pos gerbang untuk pencatatan KM akhir & otorisasi pengembalian.'
                     : 'Pemeriksaan fisik, kilometer, serta serah terima kunci untuk Mobil Keluar & Mobil Kembali.')}
-                  {activeTab === 'reports' && 'Rekapitulasi total pembelian BBM per unit kendaraan dan intensitas penggunaan berdasarkan peruntukan.'}
+                  {(activeTab === 'reports' || activeTab === 'report_fuel') && 'Rekapitulasi total pembelian dan penggunaan BBM untuk masing-masing unit kendaraan.'}
+                  {activeTab === 'report_purpose' && 'Analisis intensitas frekuensi peminjaman armada berdasarkan kategori peruntukan dan keperluan.'}
                 </p>
               </div>
 
@@ -780,11 +782,22 @@ export default function App() {
             />
           )}
 
-          {/* TAB 5: LAPORAN & REKAP BBM */}
-          {activeTab === 'reports' && (
+          {/* TAB 5: LAPORAN (SUB MENU BBM & BY PERUNTUKAN) */}
+          {(activeTab === 'reports' || activeTab === 'report_fuel') && (
             <ReportView
               loans={loans}
               vehicles={vehicles}
+              defaultSubMenu="fuel"
+              onSelectSubMenu={(sub) => setActiveTab(sub === 'fuel' ? 'report_fuel' : 'report_purpose')}
+            />
+          )}
+
+          {activeTab === 'report_purpose' && (
+            <ReportView
+              loans={loans}
+              vehicles={vehicles}
+              defaultSubMenu="purpose"
+              onSelectSubMenu={(sub) => setActiveTab(sub === 'fuel' ? 'report_fuel' : 'report_purpose')}
             />
           )}
 
