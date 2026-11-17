@@ -15,7 +15,19 @@ import { PicContactsModal } from './components/PicContactsModal'
 import { WhatsAppFollowUpModal } from './components/WhatsAppFollowUpModal'
 import { LoginPage } from './components/LoginPage'
 import { api } from './services/api'
-import { Car, AlertTriangle, RefreshCw, Plus, Layers, Clock, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { 
+  Car, 
+  AlertTriangle, 
+  RefreshCw, 
+  Plus, 
+  Layers, 
+  Clock, 
+  PanelLeftClose, 
+  PanelLeftOpen,
+  CheckSquare,
+  ShieldCheck,
+  Menu
+} from 'lucide-react'
 
 const AUTH_USER_KEY = 'pinjammobil_auth_user'
 
@@ -418,7 +430,7 @@ export default function App() {
   }).length
 
   return (
-    <div className="min-h-screen bg-[#f0f4f8] py-5 px-3 sm:px-6 lg:px-8 text-slate-800 font-sans selection:bg-sky-600 selection:text-white">
+    <div className="min-h-screen bg-[#f0f4f8] py-3 sm:py-5 px-2.5 sm:px-6 lg:px-8 pb-24 lg:pb-8 text-slate-800 font-sans selection:bg-sky-600 selection:text-white">
       
       {/* Toast Notification Container */}
       {toast && (
@@ -433,63 +445,74 @@ export default function App() {
         </div>
       )}
 
-      {/* Container Utama Aplikasi (2 Kolom Persis Gaya HTML Legacy) */}
+      {/* Container Utama Aplikasi (2 Kolom di Desktop, Responsif di HP) */}
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-6 items-start">
         
-        {/* KOLOM KIRI: SIDEBAR MENU UTAMA */}
+        {/* KOLOM KIRI: SIDEBAR MENU UTAMA (OFF-CANVAS DRAWER DI HP, INLINE DI DESKTOP) */}
         {isSidebarVisible && (
-          <Sidebar
-            currentUser={currentUser}
-            activeTab={activeTab}
-            setActiveTab={(tab) => {
-              setActiveTab(tab)
-              setIsSidebarVisible(false)
-            }}
-            onOpenLoanModal={() => {
-              setIsSidebarVisible(false)
-              handleOpenBorrowModal(null)
-            }}
-            onOpenSecurityCodes={() => {
-              setIsSidebarVisible(false)
-              setIsSecurityCodesOpen(true)
-            }}
-            onOpenUserManagement={() => {
-              setIsSidebarVisible(false)
-              setIsUserManagementOpen(true)
-            }}
-            onOpenEditProfile={() => {
-              setIsSidebarVisible(false)
-              setIsProfileModalOpen(true)
-            }}
-            onOpenResetLoans={() => {
-              setIsSidebarVisible(false)
-              setIsResetLoansOpen(true)
-            }}
-            onOpenPicContacts={() => {
-              setIsSidebarVisible(false)
-              setIsPicContactsOpen(true)
-            }}
-            onOpenSettings={() => {
-              setIsSidebarVisible(false)
-              setIsSettingsOpen(true)
-            }}
-            onCloseSidebar={toggleSidebar}
-            onLogout={handleLogout}
-            loanCount={loans.filter(l => l.status !== 'completed').length}
-            vehicleCount={vehicles.length}
-            pendingApprovalCount={loans.filter(l => l.status === 'pending').length}
-            securityPendingCount={securityPendingCount}
-          />
+          <>
+            {/* Backdrop di Layar HP */}
+            <div
+              className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 lg:hidden transition-opacity animate-in fade-in"
+              onClick={toggleSidebar}
+            />
+
+            {/* Sidebar Container */}
+            <div className="fixed inset-y-0 left-0 z-50 w-80 max-w-[85vw] p-3 lg:p-0 lg:static lg:z-auto lg:w-72 shrink-0 animate-in slide-in-from-left duration-200 overflow-y-auto max-h-screen">
+              <Sidebar
+                currentUser={currentUser}
+                activeTab={activeTab}
+                setActiveTab={(tab) => {
+                  setActiveTab(tab)
+                  setIsSidebarVisible(false)
+                }}
+                onOpenLoanModal={() => {
+                  setIsSidebarVisible(false)
+                  handleOpenBorrowModal(null)
+                }}
+                onOpenSecurityCodes={() => {
+                  setIsSidebarVisible(false)
+                  setIsSecurityCodesOpen(true)
+                }}
+                onOpenUserManagement={() => {
+                  setIsSidebarVisible(false)
+                  setIsUserManagementOpen(true)
+                }}
+                onOpenEditProfile={() => {
+                  setIsSidebarVisible(false)
+                  setIsProfileModalOpen(true)
+                }}
+                onOpenResetLoans={() => {
+                  setIsSidebarVisible(false)
+                  setIsResetLoansOpen(true)
+                }}
+                onOpenPicContacts={() => {
+                  setIsSidebarVisible(false)
+                  setIsPicContactsOpen(true)
+                }}
+                onOpenSettings={() => {
+                  setIsSidebarVisible(false)
+                  setIsSettingsOpen(true)
+                }}
+                onCloseSidebar={toggleSidebar}
+                onLogout={handleLogout}
+                loanCount={loans.filter(l => l.status !== 'completed').length}
+                vehicleCount={vehicles.length}
+                pendingApprovalCount={loans.filter(l => l.status === 'pending').length}
+                securityPendingCount={securityPendingCount}
+              />
+            </div>
+          </>
         )}
 
         {/* KOLOM KANAN: KONTEN UTAMA */}
-        <main className={`w-full ${isSidebarVisible ? 'lg:w-3/4' : 'lg:w-full'} flex-1 min-w-0 space-y-6 transition-all duration-200`}>
+        <main className={`w-full ${isSidebarVisible ? 'lg:w-3/4' : 'lg:w-full'} flex-1 min-w-0 space-y-4 sm:space-y-6 transition-all duration-200`}>
           
-          {/* Header Card Konten Kanan (Identik dengan Legacy) */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/90 p-5 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          {/* Header Card Konten Kanan */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/90 p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {/* Tombol Toggle Sembunyikan / Munculkan Sidebar */}
                   <button
                     type="button"
@@ -504,7 +527,7 @@ export default function App() {
                     {isSidebarVisible ? (
                       <>
                         <PanelLeftClose className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Sembunyikan Menu</span>
+                        <span>Sembunyikan Menu</span>
                       </>
                     ) : (
                       <>
@@ -514,68 +537,72 @@ export default function App() {
                     )}
                   </button>
 
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-200/70">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-200/70">
                     <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse"></span>
                     <span>Database Supabase Live</span>
                   </span>
                 </div>
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-800 mt-1.5">
+                
+                <h1 className="text-lg sm:text-2xl font-bold text-slate-800 mt-1 leading-snug">
                   {activeTab === 'vehicles' && 'Status Ketersediaan & Armada Mobil'}
                   {activeTab === 'loans' && 'Histori & Transaksi Peminjaman Unit'}
                   {activeTab === 'approvals' && 'Pusat Verifikasi & Persetujuan'}
                   {activeTab === 'security' && 'Pos Pengecekan Security'}
                 </h1>
-                <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                <p className="text-[11px] sm:text-sm text-slate-500 mt-0.5 leading-relaxed">
                   {activeTab === 'vehicles' && 'Daftar armada kendaraan operasional yang tersedia beserta status terkini.'}
                   {activeTab === 'loans' && 'Catatan seluruh transaksi peminjaman kendaraan aktif maupun selesai.'}
-                  {activeTab === 'approvals' && 'Alur otorisasi berjenjang: 1. Verifikasi GA (semua armada) ➔ 2. Persetujuan SPV (khusus Test Drive) ➔ 3. Persetujuan ADH (semua unit).'}
-                  {activeTab === 'security' && 'Pemeriksaan fisik, kilometer, serta serah terima kunci untuk Mobil Keluar & Mobil Kembali di pos gerbang.'}
+                  {activeTab === 'approvals' && 'Alur otorisasi berjenjang verifikasi ketersediaan armada dan otorisasi peminjaman.'}
+                  {activeTab === 'security' && 'Pemeriksaan fisik, kilometer, serta serah terima kunci untuk Mobil Keluar & Mobil Kembali.'}
                 </p>
               </div>
 
-              {/* Quick Stat Badges (Style Legacy) */}
-              <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
-                <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5 text-center shadow-xs">
-                  <div className="text-[10px] text-amber-700 font-bold uppercase tracking-wider">Sedang Dipinjam</div>
-                  <div className="text-base font-bold text-amber-600">{borrowedCount}</div>
+              {/* Quick Stat Badges: Rapi & Simetris di HP */}
+              <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto pt-1 sm:pt-0 border-t sm:border-0 border-slate-100">
+                <div className="grid grid-cols-3 gap-1.5 sm:flex sm:gap-2 flex-1 sm:flex-initial">
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-2 sm:px-3 py-1 sm:py-1.5 text-center shadow-xs">
+                    <div className="text-[9px] sm:text-[10px] text-amber-700 font-bold uppercase tracking-wider truncate">Dipinjam</div>
+                    <div className="text-sm sm:text-base font-bold text-amber-600 leading-tight">{borrowedCount}</div>
+                  </div>
+
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-2 sm:px-3 py-1 sm:py-1.5 text-center shadow-xs">
+                    <div className="text-[9px] sm:text-[10px] text-emerald-700 font-bold uppercase tracking-wider truncate">Tersedia</div>
+                    <div className="text-sm sm:text-base font-bold text-emerald-600 leading-tight">{availableCount}</div>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl px-2 sm:px-3 py-1 sm:py-1.5 text-center shadow-xs">
+                    <div className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-wider truncate">Total</div>
+                    <div className="text-sm sm:text-base font-bold text-slate-700 leading-tight">{vehicles.length}</div>
+                  </div>
                 </div>
 
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-1.5 text-center shadow-xs">
-                  <div className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">Unit Tersedia</div>
-                  <div className="text-base font-bold text-emerald-600">{availableCount}</div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={loadData}
+                    disabled={isRefreshing}
+                    className="p-2 sm:p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition shadow-xs cursor-pointer"
+                    title="Muat ulang data Supabase"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin text-sky-600' : ''}`} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={toggleSidebar}
+                    className={`hidden sm:flex p-2.5 rounded-xl border transition shadow-xs cursor-pointer items-center justify-center ${
+                      isSidebarVisible
+                        ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                        : 'border-sky-400 bg-sky-50 hover:bg-sky-100 text-sky-700'
+                    }`}
+                    title={isSidebarVisible ? "Sembunyikan Menu Utama" : "Tampilkan Menu Utama"}
+                  >
+                    {isSidebarVisible ? (
+                      <PanelLeftClose className="h-4 w-4" />
+                    ) : (
+                      <PanelLeftOpen className="h-4 w-4 text-sky-600" />
+                    )}
+                  </button>
                 </div>
-
-                <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-center shadow-xs">
-                  <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Total Armada</div>
-                  <div className="text-base font-bold text-slate-700">{vehicles.length}</div>
-                </div>
-
-                <button
-                  onClick={loadData}
-                  disabled={isRefreshing}
-                  className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition shadow-xs cursor-pointer"
-                  title="Muat ulang data Supabase"
-                >
-                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin text-sky-600' : ''}`} />
-                </button>
-
-                {/* Tombol Toggle Sidebar Cepat */}
-                <button
-                  type="button"
-                  onClick={toggleSidebar}
-                  className={`p-2.5 rounded-xl border transition shadow-xs cursor-pointer flex items-center justify-center ${
-                    isSidebarVisible
-                      ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                      : 'border-sky-400 bg-sky-50 hover:bg-sky-100 text-sky-700'
-                  }`}
-                  title={isSidebarVisible ? "Sembunyikan Menu Utama (Sidebar)" : "Tampilkan Menu Utama (Sidebar)"}
-                >
-                  {isSidebarVisible ? (
-                    <PanelLeftClose className="h-4 w-4" />
-                  ) : (
-                    <PanelLeftOpen className="h-4 w-4 text-sky-600" />
-                  )}
-                </button>
               </div>
             </div>
 
@@ -739,18 +766,125 @@ export default function App() {
         }}
       />
 
-      {/* Floating Button: Akses Cepat Buka Menu Utama ketika Sidebar disembunyikan */}
+      {/* Floating Button: Akses Cepat Buka Menu Utama ketika Sidebar disembunyikan (Khusus Desktop) */}
       {!isSidebarVisible && (
         <button
           type="button"
           onClick={toggleSidebar}
-          className="fixed bottom-5 left-5 z-40 px-3.5 py-2.5 rounded-full bg-slate-900 hover:bg-sky-600 text-white font-bold text-xs shadow-2xl border border-slate-700 flex items-center gap-2 transition-all hover:scale-105 cursor-pointer animate-in fade-in"
+          className="hidden lg:flex fixed bottom-6 left-6 z-40 px-3.5 py-2.5 rounded-full bg-slate-900 hover:bg-sky-600 text-white font-bold text-xs shadow-2xl border border-slate-700 items-center gap-2 transition-all hover:scale-105 cursor-pointer animate-in fade-in"
           title="Tampilkan Menu Utama"
         >
           <PanelLeftOpen className="w-4 h-4 text-sky-400" />
           <span>Menu Utama</span>
         </button>
       )}
+
+      {/* ============================================================ */}
+      {/* MOBILE BOTTOM NAVIGATION BAR (Khusus Tampilan Smartphone / HP) */}
+      {/* ============================================================ */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 text-slate-400 py-1.5 px-3 shadow-2xl flex items-center justify-around">
+        {/* 1. Tab Armada */}
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('vehicles')
+            setIsSidebarVisible(false)
+          }}
+          className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-lg transition-colors cursor-pointer ${
+            activeTab === 'vehicles' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Layers className="h-4 w-4" />
+          <span className="text-[10px]">Armada</span>
+        </button>
+
+        {/* 2. Tab Histori */}
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('loans')
+            setIsSidebarVisible(false)
+          }}
+          className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-lg transition-colors relative cursor-pointer ${
+            activeTab === 'loans' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Clock className="h-4 w-4" />
+          <span className="text-[10px]">Histori</span>
+          {loans.filter(l => l.status === 'pending').length > 0 && (
+            <span className="absolute top-0.5 right-1.5 w-2 h-2 rounded-full bg-amber-400"></span>
+          )}
+        </button>
+
+        {/* 3. Tombol Pinjam Cepat (Tengah, Menonjol) */}
+        <button
+          type="button"
+          onClick={() => {
+            setIsSidebarVisible(false)
+            handleOpenBorrowModal(null)
+          }}
+          className="flex flex-col items-center -mt-5 cursor-pointer group"
+          title="Input Peminjaman Baru"
+        >
+          <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-sky-600 to-sky-400 text-white flex items-center justify-center shadow-lg shadow-sky-500/40 border-2 border-slate-900 group-hover:scale-105 transition-transform">
+            <Plus className="h-6 w-6 stroke-[2.5]" />
+          </div>
+          <span className="text-[10px] font-bold text-sky-400 mt-0.5">Pinjam</span>
+        </button>
+
+        {/* 4. Tab Approval (Jika berhak) atau Security */}
+        {canAccessApprovals ? (
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('approvals')
+              setIsSidebarVisible(false)
+            }}
+            className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-lg transition-colors relative cursor-pointer ${
+              activeTab === 'approvals' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <CheckSquare className="h-4 w-4" />
+            <span className="text-[10px]">Approval</span>
+            {loans.filter(l => l.status === 'pending').length > 0 && (
+              <span className="absolute top-0.5 right-1 px-1 rounded-full text-[9px] font-black bg-amber-500 text-slate-950">
+                {loans.filter(l => l.status === 'pending').length}
+              </span>
+            )}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('security')
+              setIsSidebarVisible(false)
+            }}
+            className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-lg transition-colors relative cursor-pointer ${
+              activeTab === 'security' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <ShieldCheck className="h-4 w-4" />
+            <span className="text-[10px]">Security</span>
+            {securityPendingCount > 0 && (
+              <span className="absolute top-0.5 right-1 px-1 rounded-full text-[9px] font-black bg-emerald-500 text-slate-950">
+                {securityPendingCount}
+              </span>
+            )}
+          </button>
+        )}
+
+        {/* 5. Menu Drawer */}
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-lg transition-colors cursor-pointer ${
+            isSidebarVisible ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Menu className="h-4 w-4" />
+          <span className="text-[10px]">Menu</span>
+        </button>
+      </nav>
 
     </div>
   )
