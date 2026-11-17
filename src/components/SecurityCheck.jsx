@@ -22,6 +22,7 @@ import {
   Lock
 } from 'lucide-react'
 import { Modal } from './ui/Modal'
+import { isLoanOwnedByUser } from '../lib/utils'
 
 export function SecurityCheck({
   loans = [],
@@ -72,32 +73,58 @@ export function SecurityCheck({
     return (securityCodes || []).find(s => String(s.code).trim() === inSecurityPin.trim()) || null
   }, [inSecurityPin, securityCodes])
 
+  const userRole = currentUser?.role?.toLowerCase()
+  const isStaff = userRole === 'staff'
+  const isSecurity = userRole === 'security'
+  const isAdmin = userRole === 'admin'
+
+  // Data peminjaman yang dapat diakses oleh user ini
+  // Untuk staff/peminjam: hanya peminjaman yang diinput oleh akun staff ini
+  const scopedLoans = useMemo(() => {
+    if (isStaff) {
+      return loans.filter(l => isLoanOwnedByUser(l, currentUser))
+    }
+    return loans
+  }, [loans, isStaff, currentUser])
+
   // Kelompokkan data peminjaman
   const loansReadyForOut = useMemo(() => {
-    return loans.filter(l => {
+    return scopedLoans.filter(l => {
       // Syarat Mobil Keluar:
       // Status sudah disetujui penuh (approved) dan belum check-out
       const sec = l.security || {}
       return l.status === 'approved' && sec.gate_status !== 'out' && sec.gate_status !== 'in'
     })
-  }, [loans])
+  }, [scopedLoans])
 
   const loansCurrentlyOut = useMemo(() => {
-    return loans.filter(l => {
+    return scopedLoans.filter(l => {
       // Syarat Mobil Kembali:
       // Sudah check out atau status approved yang sedang berjalan
       const sec = l.security || {}
       return (l.status === 'approved' && sec.gate_status === 'out') || 
              (l.status === 'approved' && sec.gate_status !== 'in')
     })
-  }, [loans])
+  }, [scopedLoans])
 
   const loansHistory = useMemo(() => {
-    return loans.filter(l => {
+    return scopedLoans.filter(l => {
       const sec = l.security || {}
-      return sec.gate_status === 'in' || l.status === 'completed' || sec.out_time
+      const hasSecurityRecord = sec.gate_status === 'in' || l.status === 'completed' || sec.out_time
+      if (!hasSecurityRecord) return false
+
+      // Jika yang login adalah role security, riwayat yang muncul adalah data yang diinput oleh petugas security ini saja
+      if (isSecurity) {
+        const myName = (currentUser?.name || '').trim().toLowerCase()
+        const outBy = (sec.out_by || '').trim().toLowerCase()
+        const inBy = (sec.in_by || '').trim().toLowerCase()
+        return (outBy && (outBy === myName || outBy.includes(myName) || myName.includes(outBy))) ||
+               (inBy && (inBy === myName || inBy.includes(myName) || myName.includes(inBy)))
+      }
+
+      return true
     })
-  }, [loans])
+  }, [scopedLoans, isSecurity, currentUser])
 
   // Filter berdasarkan sub-tab aktif dan pencarian
   const displayLoans = useMemo(() => {
@@ -336,9 +363,15 @@ export function SecurityCheck({
         </div>
 
         {/* Petugas Bertugas Identity Badge */}
-        <div className="hidden lg:flex items-center gap-2 text-xs text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg">
+        <div className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg">
           <ShieldCheck className="h-3.5 w-3.5 text-sky-600" />
-          <span>Pos Security: <strong className="text-slate-800">{currentUser?.name || 'Petugas'}</strong></span>
+          {isStaff ? (
+            <span>Memantau Kendaraan Akun: <strong className="text-slate-800">{currentUser?.name}</strong></span>
+          ) : isSecurity ? (
+            <span>Petugas Security: <strong className="text-slate-800">{currentUser?.name}</strong></span>
+          ) : (
+            <span>Pos Security: <strong className="text-slate-800">{currentUser?.name || 'Petugas'}</strong></span>
+          )}
         </div>
 
       </div>
@@ -506,24 +539,38 @@ export function SecurityCheck({
                   <div className="flex items-center gap-2">
                     {/* Tombol Catat Mobil Keluar */}
                     {activeSubTab === 'out' && !isOut && !isIn && (
-                      <button
-                        onClick={() => handleOpenOutModal(loan)}
-                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                      >
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                        <span>Pemeriksaan Mobil Keluar</span>
-                      </button>
+                      isStaff ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                          <Clock className="h-3.5 w-3.5 text-sky-600" />
+                          <span>Pemeriksaan fisik dilakukan oleh security gerbang</span>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleOpenOutModal(loan)}
+                          className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                        >
+                          <ArrowUpRight className="h-3.5 w-3.5" />
+                          <span>Pemeriksaan Mobil Keluar</span>
+                        </button>
+                      )
                     )}
 
                     {/* Tombol Catat Mobil Kembali */}
                     {activeSubTab === 'in' && !isIn && (
-                      <button
-                        onClick={() => handleOpenInModal(loan)}
-                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                      >
-                        <ArrowDownLeft className="h-3.5 w-3.5" />
-                        <span>Pemeriksaan Mobil Kembali</span>
-                      </button>
+                      isStaff ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                          <Clock className="h-3.5 w-3.5 text-sky-600" />
+                          <span>Serahkan kunci ke pos security saat kembali</span>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleOpenInModal(loan)}
+                          className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                        >
+                          <ArrowDownLeft className="h-3.5 w-3.5" />
+                          <span>Pemeriksaan Mobil Kembali</span>
+                        </button>
+                      )
                     )}
 
                     {activeSubTab === 'history' && (

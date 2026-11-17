@@ -377,12 +377,27 @@ export const api = {
         cleanNote = cleanNote
           .replace(/\[BBM Awal:\s*[^\]]+\]/gi, '')
           .replace(/\[Beli BBM:\s*[^\]]+\]/gi, '')
+          .replace(/__BORROWER_META__:[^\n]+/gi, '')
           .trim()
+
+        let borrower_user_id = item.borrower_user_id || item.user_id || null
+        let borrower_username = item.borrower_username || null
+
+        if (item.notes && item.notes.includes('__BORROWER_META__:')) {
+          try {
+            const metaStr = item.notes.split('__BORROWER_META__:')[1].split('\n')[0]
+            const parsed = JSON.parse(metaStr.trim())
+            if (parsed.id) borrower_user_id = parsed.id
+            if (parsed.username) borrower_username = parsed.username
+          } catch (e) {}
+        }
 
         const isTD = isTestDriveLoan(item, item.vehicles)
 
         return {
           ...item,
+          borrower_user_id,
+          borrower_username,
           vehicle_name: item.vehicles?.name || item.vehicle_name,
           license_plate: item.vehicles?.license_plate || item.license_plate,
           vehicle_type: item.vehicles?.type || item.vehicle_type,
@@ -469,7 +484,16 @@ export const api = {
         ? `[Beli BBM: YA - Rp ${loanData.fuel_amount || '100.000'}]` 
         : `[Beli BBM: TIDAK]`
 
-      const combinedUserNote = [fuelPrefix, buyFuelPrefix, userNote].filter(Boolean).join(' ')
+      let combinedUserNote = [fuelPrefix, buyFuelPrefix, userNote].filter(Boolean).join(' ')
+
+      const borrowerMeta = {
+        id: loanData.user_id || null,
+        username: loanData.borrower_username || null,
+        name: loanData.borrower_name || ''
+      }
+      if (borrowerMeta.id || borrowerMeta.username) {
+        combinedUserNote = `${combinedUserNote ? combinedUserNote + '\n' : ''}__BORROWER_META__:${JSON.stringify(borrowerMeta)}`
+      }
 
       const notesWithApproval = combinedUserNote
         ? `${combinedUserNote}\n\n__APPROVAL_DATA__:${JSON.stringify(initialApprovals)}`

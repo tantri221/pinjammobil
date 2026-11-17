@@ -15,6 +15,7 @@ import { PicContactsModal } from './components/PicContactsModal'
 import { WhatsAppFollowUpModal } from './components/WhatsAppFollowUpModal'
 import { LoginPage } from './components/LoginPage'
 import { api } from './services/api'
+import { isLoanOwnedByUser } from './lib/utils'
 import { 
   Car, 
   AlertTriangle, 
@@ -404,9 +405,15 @@ export default function App() {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />
   }
 
+  const isStaff = currentUser?.role === 'staff'
+  const userScopedLoans = isStaff ? loans.filter(l => isLoanOwnedByUser(l, currentUser)) : loans
+
   const availableCount = vehicles.filter(v => v.status === 'available').length
   const borrowedCount = vehicles.filter(v => v.status === 'borrowed').length
-  const securityPendingCount = loans.filter(l => {
+
+  const userActiveLoanCount = userScopedLoans.filter(l => l.status !== 'completed').length
+  const userPendingApprovalCount = userScopedLoans.filter(l => l.status === 'pending').length
+  const securityPendingCount = userScopedLoans.filter(l => {
     const sec = l.security || {}
     return l.status === 'approved' && sec.gate_status !== 'in'
   }).length
@@ -480,9 +487,9 @@ export default function App() {
             }}
             onCloseSidebar={() => setIsMobileMenuOpen(false)}
             onLogout={handleLogout}
-            loanCount={loans.filter(l => l.status !== 'completed').length}
+            loanCount={userActiveLoanCount}
             vehicleCount={vehicles.length}
-            pendingApprovalCount={loans.filter(l => l.status === 'pending').length}
+            pendingApprovalCount={userPendingApprovalCount}
             securityPendingCount={securityPendingCount}
           />
         </div>
@@ -739,7 +746,7 @@ export default function App() {
         >
           <Clock className="h-4 w-4" />
           <span className="text-[10px]">Histori</span>
-          {loans.filter(l => l.status === 'pending').length > 0 && (
+          {userPendingApprovalCount > 0 && (
             <span className="absolute top-0.5 right-1.5 w-2 h-2 rounded-full bg-amber-400"></span>
           )}
         </button>

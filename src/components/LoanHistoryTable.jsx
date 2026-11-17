@@ -23,7 +23,7 @@ import {
   Eye
 } from 'lucide-react'
 import { Modal } from './ui/Modal'
-import { isTestDriveLoan } from '../lib/utils'
+import { isTestDriveLoan, isLoanOwnedByUser } from '../lib/utils'
 
 const getTodayDateString = () => {
   const now = new Date()
@@ -169,8 +169,19 @@ export function LoanHistoryTable({
     setFilterMode('daily')
   }
 
+  const userRole = currentUser?.role?.toLowerCase()
+  const isStaff = userRole === 'staff'
+
+  // Batasi data histori untuk akun staff / peminjam biasa hanya tiket yang diinput oleh akun tersebut
+  const scopedLoans = useMemo(() => {
+    if (isStaff) {
+      return loans.filter(loan => isLoanOwnedByUser(loan, currentUser))
+    }
+    return loans
+  }, [loans, isStaff, currentUser])
+
   const filteredLoans = useMemo(() => {
-    const list = loans.filter(loan => {
+    const list = scopedLoans.filter(loan => {
       // Filter strictly berdasarkan tanggal mobil digunakan (start_date / end_date)
       const matchesDate = filterMode === 'all' || isLoanUsedOnDate(loan, selectedDate)
       if (!matchesDate) return false
@@ -194,7 +205,7 @@ export function LoanHistoryTable({
       const dateB = new Date(b.start_date || b.created_at || 0).getTime()
       return dateB - dateA
     })
-  }, [loans, filterMode, selectedDate, searchQuery])
+  }, [scopedLoans, filterMode, selectedDate, searchQuery])
 
   const handleOpenReturn = (loan) => {
     setReturningLoan(loan)
@@ -266,16 +277,21 @@ export function LoanHistoryTable({
         <div className="p-4 sm:p-5 border-b border-slate-200/80 bg-slate-50/50 space-y-3.5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] font-bold text-sky-700 bg-sky-100/80 border border-sky-200 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                   {filterMode === 'daily' ? '📅 Penggunaan Mobil Harian' : '📋 Semua Riwayat'}
                 </span>
+                {isStaff && (
+                  <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full">
+                    👤 Peminjam: {currentUser?.name}
+                  </span>
+                )}
                 <span className="text-xs text-slate-500 font-medium">
                   {filterMode === 'daily' ? `Tanggal Pemakaian: ${formatIndonesianDate(selectedDate)}` : 'Seluruh Riwayat Transaksi'}
                 </span>
               </div>
               <h3 className="text-base sm:text-lg font-bold text-slate-800 mt-1">
-                Histori & Status Peminjaman Kendaraan
+                {isStaff ? 'Histori Peminjaman Saya' : 'Histori & Status Peminjaman Kendaraan'}
               </h3>
             </div>
             
@@ -284,10 +300,10 @@ export function LoanHistoryTable({
                 {filterMode === 'daily' ? (
                   <>
                     Mobil Digunakan: <span className="font-bold text-sky-700">{filteredLoans.length}</span>
-                    <span className="text-slate-400 font-normal"> / {loans.length} total</span>
+                    <span className="text-slate-400 font-normal"> / {scopedLoans.length} {isStaff ? 'milik Anda' : 'total'}</span>
                   </>
                 ) : (
-                  <>Total Transaksi: <span className="font-bold text-slate-800">{loans.length}</span></>
+                  <>Total Transaksi: <span className="font-bold text-slate-800">{scopedLoans.length}</span></>
                 )}
               </div>
             </div>
@@ -447,12 +463,21 @@ export function LoanHistoryTable({
                     <CalendarDays className="h-10 w-10 mx-auto mb-3 text-slate-300 stroke-1" />
                     <div className="font-bold text-slate-700 text-sm">
                       {filterMode === 'daily' 
-                        ? `Tidak ada peminjaman mobil yang digunakan pada tanggal ${formatIndonesianDate(selectedDate)}`
-                        : 'Tidak ada transaksi peminjaman yang cocok dengan filter.'}
+                        ? (isStaff 
+                            ? `Tidak ada peminjaman mobil dari akun Anda yang digunakan pada tanggal ${formatIndonesianDate(selectedDate)}`
+                            : `Tidak ada peminjaman mobil yang digunakan pada tanggal ${formatIndonesianDate(selectedDate)}`
+                          )
+                        : (isStaff
+                            ? 'Akun Anda belum memiliki riwayat transaksi peminjaman yang cocok dengan filter.'
+                            : 'Tidak ada transaksi peminjaman yang cocok dengan filter.'
+                          )}
                     </div>
                     <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
                       {filterMode === 'daily' 
-                        ? 'Gunakan pemilih tanggal di atas untuk melihat tanggal penggunaan mobil yang lain, atau klik "Semua Riwayat" untuk melihat seluruh catatan.'
+                        ? (isStaff 
+                            ? 'Gunakan pemilih tanggal di atas untuk melihat tanggal pemakaian Anda yang lain, atau klik "Tampilkan Semua Riwayat" di bawah.'
+                            : 'Gunakan pemilih tanggal di atas untuk melihat tanggal penggunaan mobil yang lain, atau klik "Semua Riwayat" untuk melihat seluruh catatan.'
+                          )
                         : 'Coba ubah kata kunci pencarian atau reset filter.'}
                     </p>
                     <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">

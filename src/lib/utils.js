@@ -30,3 +30,30 @@ export function isTestDriveLoan(loan, vehicle = null) {
   return false
 }
 
+/**
+ * Memeriksa apakah tiket peminjaman adalah milik akun pengguna tertentu.
+ * Mencocokkan ID akun, username, atau nama peminjam secara fleksibel.
+ */
+export function isLoanOwnedByUser(loan, user) {
+  if (!loan || !user) return false
+
+  const userId = user.id
+  const userName = (user.name || '').trim().toLowerCase()
+  const userUsername = (user.username || '').trim().toLowerCase()
+
+  const borrowerId = loan.borrower_user_id || loan.user_id
+  const borrowerName = (loan.borrower_name || '').trim().toLowerCase()
+  const borrowerUsername = (loan.borrower_username || '').trim().toLowerCase()
+
+  // 1. Cocokkan ID pengguna
+  if (borrowerId && userId && String(borrowerId) === String(userId)) return true
+
+  // 2. Cocokkan Username
+  if (userUsername && borrowerUsername && borrowerUsername === userUsername) return true
+
+  // 3. Cocokkan Nama Peminjam
+  if (userName && borrowerName && (borrowerName === userName || borrowerName.includes(userName) || userName.includes(borrowerName))) return true
+
+  return false
+}
+

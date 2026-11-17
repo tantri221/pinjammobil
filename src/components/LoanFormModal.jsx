@@ -77,6 +77,9 @@ export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVeh
       const foundVehicle = availableVehicles.find(v => String(v.id) === String(formData.vehicle_id)) || selectedVehicle
       await onSubmit({
         ...formData,
+        user_id: currentUser?.id || null,
+        borrower_username: currentUser?.username || null,
+        borrower_name: currentUser?.role === 'staff' ? (currentUser.name || formData.borrower_name) : formData.borrower_name,
         vehicle_name: foundVehicle?.name || '',
         license_plate: foundVehicle?.license_plate || '',
         vehicle_type: foundVehicle?.type || ''
@@ -109,7 +112,14 @@ export function LoanFormModal({ isOpen, onClose, currentUser = null, selectedVeh
               placeholder="Contoh: Budi Santoso"
               value={formData.borrower_name}
               onChange={e => setFormData({ ...formData, borrower_name: e.target.value })}
+              readOnly={currentUser?.role === 'staff'}
+              className={currentUser?.role === 'staff' ? 'bg-slate-100 cursor-not-allowed text-slate-700 font-semibold' : ''}
             />
+            {currentUser?.role === 'staff' && (
+              <p className="text-[10px] text-slate-400 mt-1">
+                Terkunci otomatis sesuai akun peminjam yang sedang aktif ({currentUser?.name}).
+              </p>
+            )}
           </div>
 
           <div>
